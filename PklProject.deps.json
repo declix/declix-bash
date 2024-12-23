@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "resolvedDependencies": {
+    "package://pkl.declix.org/pkl-declix@0": {
+      "type": "remote",
+      "uri": "projectpackage://pkl.declix.org/pkl-declix@0.0.4",
+      "checksums": {
+        "sha256": "55ef2d7df637405e11cc2598a9085045d9afb4cd4a2b2a30d33fbf3581df5577"
+      }
+    },
+    "package://pkg.pkl-lang.org/pkl-pantry/pkl.experimental.uri@1": {
+      "type": "remote",
+      "uri": "projectpackage://pkg.pkl-lang.org/pkl-pantry/pkl.experimental.uri@1.0.3",
+      "checksums": {
+        "sha256": "0b1db5755fa0c7651d5c62e0d5ef8a9ed4ed6411fe31769d06714600162e1589"
+      }
+    }
+  }
+}

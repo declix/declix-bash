@@ -1,0 +1,30 @@
+import "@pkl-declix/declix.pkl"
+import "@pkl-declix/apt/apt.pkl"
+
+function generate(resources): String = new Listing {
+    "apply() {"
+    for (resource in resources) {
+        gen(resource)
+    }
+    "}"
+    "apply"
+}.join("\n")
+
+local function gen(resource): String = 
+    if (resource.type == "apt") 
+        gen_apt(resource.toDynamic().toTyped(apt.Package))
+    else 
+        throw("unsupported resource type: \(resource.type)")
+    
+local function gen_apt(pkg: apt.Package): String = new Listing {
+        if (pkg.updateBeforeInstall) "sudo apt update" else ""
+        "local status=$(dpkg-query -W -f='${db:Status-Abbrev}' \(pkg.name))"
+        if (pkg.state == "installed") 
+            """
+            if [ "$status" != "ii " ]; then
+                sudo apt install -y --no-upgrade --no-install-recommends \(pkg.name)
+            fi
+            """
+        else if (pkg.state == "missing") "sudo apt remove -y \(pkg.name)"
+        else throw("unsupported pkg \(pkg.name) state: \(pkg.state)")
+    }.toList().filter((cmd) -> cmd != "").join("\n")
