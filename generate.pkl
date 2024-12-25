@@ -2,29 +2,82 @@ import "@pkl-declix/declix.pkl"
 import "@pkl-declix/apt/apt.pkl"
 
 function generate(resources): String = new Listing {
-    "apply() {"
     for (resource in resources) {
+        """
+        function \(functionName(resource))() {
+            local action=$1
+        """
         gen(resource)
+        "}"
     }
+    "check() {"
+        for (resource in resources) {
+            "    \(functionName(resource)) \"check\""
+        }
     "}"
-    "apply"
+    "apply() {"
+        for (resource in resources) {
+            "    \(functionName(resource)) \"apply\""
+        }
+    "}"
+    """
+    action=$1
+    case "$action" in
+        check)
+            check
+            ;;
+        apply)
+            apply
+            ;;
+        *)
+            echo "Usage: $0 {check|apply}"
+            exit 1
+            ;;
+    esac
+    """
 }.join("\n")
 
 local function gen(resource): String = 
     if (resource.type == "apt") 
-        gen_apt(resource.toDynamic().toTyped(apt.Package))
+        genApt(resource.toDynamic().toTyped(apt.Package))
     else 
         throw("unsupported resource type: \(resource.type)")
-    
-local function gen_apt(pkg: apt.Package): String = new Listing {
+
+// each resource must define function body with following arguments:
+// - $action = "check" | "apply"
+
+local function genApt(pkg: apt.Package): String = new Listing {
         if (pkg.updateBeforeInstall) "sudo apt update" else ""
-        "local status=$(dpkg-query -W -f='${db:Status-Abbrev}' \(pkg.name))"
+        """
+            local status=$(dpkg-query -W -f='${db:Status-Abbrev}' \(pkg.name) 2>/dev/null)
+        """
         if (pkg.state == "installed") 
             """
-            if [ "$status" != "ii " ]; then
-                sudo apt install -y --no-upgrade --no-install-recommends \(pkg.name)
-            fi
+                if [ "$status" != "ii " ]; then
+                    if [ "$action" == "check" ]; then
+                        echo "\(pkg.name)... $status"
+                    elif [ "$action" == "apply" ]; then
+                        sudo apt install -y --no-upgrade --no-install-recommends \(pkg.name)
+                    fi
+                else
+                    echo "\(pkg.name)... ok"
+                fi
             """
-        else if (pkg.state == "missing") "sudo apt remove -y \(pkg.name)"
+        else if (pkg.state == "missing") 
+            """
+                if [ "$status" != "" ]; then
+                    if [ "$action" == "check" ]; then
+                        echo "\(pkg.name)... $status"
+                    elif [ "$action" == "apply" ]; then
+                        sudo apt remove -y \(pkg.name)
+                    fi
+                else
+                    echo "\(pkg.name)... ok"
+                fi
+            """
         else throw("unsupported pkg \(pkg.name) state: \(pkg.state)")
     }.toList().filter((cmd) -> cmd != "").join("\n")
+
+local function functionName(resource): String = "_" + resource.id.replaceAll(
+    Regex(#"[^0-9a-zA-Z_]"#), "__"
+)
