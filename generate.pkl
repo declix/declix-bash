@@ -108,7 +108,7 @@ class AptPackageGen extends Gen {
                         echo "missing"
                     elif [ "$action" == "apply" ]; then
             """
-            if (pkg.updateBeforeInstall) "sudo apt-get update" else ""
+            if (pkg.updateBeforeInstall) "            sudo apt-get update" else ""
             """
                         sudo apt-get install -y --no-upgrade --no-install-recommends \(pkg.name)
                     fi
@@ -186,7 +186,7 @@ class FsFileGen extends Gen {
                         echo "ok"
                     elif [ "$action" == "apply" ]; then
                         if [ "$hash" != "$expectedHash" ]; then
-                            \(contentFunctionName) > "$path"
+                            \(contentFunctionName)
                             echo "content"
                         fi
 
@@ -201,7 +201,7 @@ class FsFileGen extends Gen {
                         fi
 
                         if [ "$permissions" != "$expectedPermissions" ]; then
-                            sudo chmod $expectedPerissions "$path"
+                            sudo chmod $expectedPermissions "$path"
                             echo "permissions: $permissions"
                         fi                 
 
@@ -211,10 +211,10 @@ class FsFileGen extends Gen {
                     if [ "$action" == "check" ]; then
                         echo "missing"
                     elif [ "$action" == "apply" ]; then
-                        \(contentFunctionName) > "$path"
+                        \(contentFunctionName)
                         sudo chown $expectedOwner "$path"
                         sudo chgrp $expectedGroup "$path"
-                        sudo chmod $expectedPerissions "$path"
+                        sudo chmod $expectedPermissions "$path"
                         echo "$expectedHash"
                     fi
                 fi
@@ -226,7 +226,7 @@ class FsFileGen extends Gen {
         """
         function \(contentFunctionName)() {
             local content="\(encodeContentBase64((file.state as fs.FilePresent).content))"
-            echo $content | base64 --decode
+            echo $content | base64 --decode | sudo tee "\(file.path)" > /dev/null
         }
         """
     } else new Listing { }
