@@ -1,7 +1,7 @@
-import "@pkl-declix/declix.pkl"
-import "@pkl-declix/apt/apt.pkl"
-import "@pkl-declix/fs/fs.pkl"
-import "@deepToTyped/deepToTyped.pkl"
+import "package://pkl.declix.org/pkl-declix@0.2.1#/declix.pkl"
+import "package://pkl.declix.org/pkl-declix@0.2.1#/apt/apt.pkl"
+import "package://pkl.declix.org/pkl-declix@0.2.1#/fs/fs.pkl"
+
 import "pkl:base"
 
 function generate(resources): String = gen(toGens(resources)).join("\n")
@@ -49,10 +49,10 @@ local function gen(gens: Listing<Gen>): Listing<String> = new Listing {
 local function toGens(resources: Listing<Any>): Listing<Gen> = resources.toList().map((r)->toGen(r)).toListing()
 
 local function toGen(resource: Any): Gen = 
-    if (resource.type == "apt") 
-        new AptPackageGen { pkg = resource.toDynamic().toTyped(apt.Package) }
-    else if (resource.type == "file") 
-        new FsFileGen { file = deepToTyped.apply(fs.File, deepToDynamic(trace(resource))) }
+    if (resource is apt.Package) 
+        new AptPackageGen { pkg = resource }
+    else if (resource is fs.File) 
+        new FsFileGen { file = resource }
     else 
         throw("unsupported resource type: \(resource.type)")
 
