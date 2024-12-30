@@ -3,12 +3,27 @@ import "package://pkl.declix.org/pkl-declix@0.2.1#/apt/apt.pkl"
 import "package://pkl.declix.org/pkl-declix@0.2.1#/fs/fs.pkl"
 
 import "pkl:base"
+import "pkl:math"
 
 function generate(resources): String = gen(toGens(resources)).join("\n")
 
 local function gen(gens: Listing<Gen>): Listing<String> = new Listing {
+    // script header
+    """
+    #!/usr/bin/env bash
+    set -eu
+    set -o pipefail
+    """
+    // helper function
+    """
+    function todo() {
+        echo "NOT IMPLEMENTED: $*" >&2
+        exit 42
+    }
+    """
     // generate implementation functions
     for (gen in gens) {
+        ...gen.aux
         """
         function \(gen.functionName)() {
             local action=$1
@@ -17,19 +32,28 @@ local function gen(gens: Listing<Gen>): Listing<String> = new Listing {
         "}"
     }
     // generate check function
-    "check() {"
+    """
+    check() {
+        local status
+    """
         for (gen in gens) {
-            "    \(gen.functionName)) \"check\""
+            """
+                status=$(\(gen.functionName) "check")
+                printf "%-60s %s\\n" "\(gen.id)" "$status"
+            """
         }
     "}"
     // generate apply function
     "apply() {"
         for (gen in gens) {
-            "    \(gen.functionName)) \"apply\""
+            """
+                status=$(\(gen.functionName) "apply")
+                printf "%-60s %s\\n" "\(gen.id)" "$status"
+            """
         }
     "}"
-    """
     // main script entrypoint
+    """
     action=$1
     case "$action" in
         check)
@@ -58,7 +82,10 @@ local function toGen(resource: Any): Gen =
 
 abstract class Gen {
     fixed id: String
+
     fixed result: Listing<String>
+
+    aux: Listing<String> = new Listing {}
 
     fixed functionName: String = "_" + id.replaceAll(Regex(#"[^0-9a-zA-Z_]"#), "__")
 }
@@ -71,35 +98,39 @@ class AptPackageGen extends Gen {
     fixed id = pkg.id
 
     fixed result = new Listing {
-        if (pkg.updateBeforeInstall) "sudo apt update" else ""
         """
             local status=$(dpkg-query -W -f='${db:Status-Abbrev}' \(pkg.name) 2>/dev/null)
         """
-        if (pkg.state == "installed") 
+        ...if (pkg.state == "installed") new Listing {
             """
                 if [ "$status" != "ii " ]; then
                     if [ "$action" == "check" ]; then
-                        echo "\(pkg.name)... missing"
+                        echo "missing"
                     elif [ "$action" == "apply" ]; then
-                        sudo apt install -y --no-upgrade --no-install-recommends \(pkg.name)
+            """
+            if (pkg.updateBeforeInstall) "sudo apt-get update" else ""
+            """
+                        sudo apt-get install -y --no-upgrade --no-install-recommends \(pkg.name)
                     fi
                 else
-                    echo "\(pkg.name)... ok"
+                    echo "ok"
                 fi
             """
-        else if (pkg.state == "missing") 
+        }
+        else if (pkg.state == "missing") new Listing {
             """
                 if [ "$status" != "" ]; then
                     if [ "$action" == "check" ]; then
-                        echo "\(pkg.name)... $status"
+                        echo "$status"
                     elif [ "$action" == "apply" ]; then
-                        sudo apt remove -y \(pkg.name)
+                        sudo apt-get remove -y \(pkg.name)
                     fi
                 else
-                    echo "\(pkg.name)... ok"
+                    echo "ok"
                 fi
             """
-        else throw("unsupported pkg \(pkg.name) state: \(pkg.state)")
+        }
+        else throw("unsupported pkg \(id) state: \(pkg.state)")
     }
 }
 
@@ -109,10 +140,109 @@ class FsFileGen extends Gen {
     file: fs.File
     fixed id = file.id
 
-    fixed result = new Listing {
-        "TODO \(file.path)"
+    fixed result: Listing<String> = 
+        if (file.state is declix.Missing) 
+            throw("TODO \(file.path)")
+        else if (file.state is fs.FilePresent)
+            present(file.state as fs.FilePresent)
+        else
+            throw("TODO \(file.path)")
+
+    local function present(state: fs.FilePresent): Listing<String> = new Listing {
+            """
+                local path="\(file.path)"
+                local expectedHash="\(contentSha256(state.content))"
+                local expectedOwner="\(state.owner)"
+                local expectedGroup="\(state.group)"
+                local expectedPermissions="\(state.permissions)"
+
+                if test -f "$path"; then
+                    local hash=""
+                    read -r hash _ < <(sudo sha256sum "$path")
+                    local owner=$(sudo stat --printf="%U" "$path")
+                    local group=$(sudo stat --printf="%G" "$path")
+                    local permissions=$(sudo stat --printf="%a" "$path")
+
+                    if [ "$action" == "check" ]; then
+                        if [ "$hash" != "$expectedHash" ]; then
+                            echo "$hash != $expectedHash"
+                            exit
+                        fi
+                        if [ "$owner" != "$expectedOwner" ]; then
+                            echo "owner: $owner != $expectedOwner"
+                            exit
+                        fi
+
+                        if [ "$group" != "$expectedGroup" ]; then
+                            echo "group: $group != $expectedGroup"
+                            exit
+                        fi
+
+                        if [ "$permissions" != "$expectedPermissions" ]; then
+                            echo "permissions: $permissions != $expectedPermissions"
+                            exit
+                        fi
+
+                        echo "ok"
+                    elif [ "$action" == "apply" ]; then
+                        if [ "$hash" != "$expectedHash" ]; then
+                            \(contentFunctionName) > "$path"
+                            echo "content"
+                        fi
+
+                        if [ "$owner" != "$expectedOwner" ]; then
+                            sudo chown $expectedOwner "$path"
+                            echo "owner: $owner"
+                        fi
+
+                        if [ "$group" != "$expectedGroup" ]; then
+                            sudo chgrp $expectedGroup "$path"
+                            echo "group: $group"
+                        fi
+
+                        if [ "$permissions" != "$expectedPermissions" ]; then
+                            sudo chmod $expectedPerissions "$path"
+                            echo "permissions: $permissions"
+                        fi                 
+
+                        echo "ok"       
+                    fi
+                else
+                    if [ "$action" == "check" ]; then
+                        echo "missing"
+                    elif [ "$action" == "apply" ]; then
+                        \(contentFunctionName) > "$path"
+                        sudo chown $expectedOwner "$path"
+                        sudo chgrp $expectedGroup "$path"
+                        sudo chmod $expectedPerissions "$path"
+                        echo "$expectedHash"
+                    fi
+                fi
+            """
     }
+
+    fixed contentFunctionName = "__content__\(functionName)"
+    aux = if (file.state is fs.FilePresent) new Listing {
+        """
+        function \(contentFunctionName)() {
+            local content="\(encodeContentBase64((file.state as fs.FilePresent).content))"
+            echo $content | base64 --decode
+        }
+        """
+    } else new Listing { }
 }
 
 local function deepToDynamic(x: base.Typed): Dynamic = x.toDynamic().toMap().mapValues((k, v) -> maybeToDynamic(v)).toDynamic()
 local function maybeToDynamic(x: Any) = if (x is Typed) deepToDynamic(x) else x
+
+const local function encodeContentBase64(content: declix.Content): String = 
+    if (content is Resource || content is String) 
+        content.base64
+    else
+        throw("unsupported content: \(content)")
+
+const local function contentSha256(content: declix.Content): String =
+    if (content is Resource || content is String) 
+        content.sha256
+    else
+        throw("unsupported content: \(content)")
