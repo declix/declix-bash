@@ -1,26 +1,35 @@
 import "@pkl-declix/declix.pkl"
 import "@pkl-declix/apt/apt.pkl"
+import "@pkl-declix/fs/fs.pkl"
+import "@deepToTyped/deepToTyped.pkl"
+import "pkl:base"
 
-function generate(resources): String = new Listing {
-    for (resource in resources) {
+function generate(resources): String = gen(toGens(resources)).join("\n")
+
+local function gen(gens: Listing<Gen>): Listing<String> = new Listing {
+    // generate implementation functions
+    for (gen in gens) {
         """
-        function \(functionName(resource))() {
+        function \(gen.functionName)() {
             local action=$1
         """
-        gen(resource)
+        ...gen.result
         "}"
     }
+    // generate check function
     "check() {"
-        for (resource in resources) {
-            "    \(functionName(resource)) \"check\""
+        for (gen in gens) {
+            "    \(gen.functionName)) \"check\""
         }
     "}"
+    // generate apply function
     "apply() {"
-        for (resource in resources) {
-            "    \(functionName(resource)) \"apply\""
+        for (gen in gens) {
+            "    \(gen.functionName)) \"apply\""
         }
     "}"
     """
+    // main script entrypoint
     action=$1
     case "$action" in
         check)
@@ -35,18 +44,33 @@ function generate(resources): String = new Listing {
             ;;
     esac
     """
-}.join("\n")
+}
 
-local function gen(resource): String = 
+local function toGens(resources: Listing<Any>): Listing<Gen> = resources.toList().map((r)->toGen(r)).toListing()
+
+local function toGen(resource: Any): Gen = 
     if (resource.type == "apt") 
-        genApt(resource.toDynamic().toTyped(apt.Package))
+        new AptPackageGen { pkg = resource.toDynamic().toTyped(apt.Package) }
+    else if (resource.type == "file") 
+        new FsFileGen { file = deepToTyped.apply(fs.File, deepToDynamic(trace(resource))) }
     else 
         throw("unsupported resource type: \(resource.type)")
+
+abstract class Gen {
+    fixed id: String
+    fixed result: Listing<String>
+
+    fixed functionName: String = "_" + id.replaceAll(Regex(#"[^0-9a-zA-Z_]"#), "__")
+}
 
 // each resource must define function body with following arguments:
 // - $action = "check" | "apply"
 
-local function genApt(pkg: apt.Package): String = new Listing {
+class AptPackageGen extends Gen {
+    pkg: apt.Package
+    fixed id = pkg.id
+
+    fixed result = new Listing {
         if (pkg.updateBeforeInstall) "sudo apt update" else ""
         """
             local status=$(dpkg-query -W -f='${db:Status-Abbrev}' \(pkg.name) 2>/dev/null)
@@ -55,7 +79,7 @@ local function genApt(pkg: apt.Package): String = new Listing {
             """
                 if [ "$status" != "ii " ]; then
                     if [ "$action" == "check" ]; then
-                        echo "\(pkg.name)... $status"
+                        echo "\(pkg.name)... missing"
                     elif [ "$action" == "apply" ]; then
                         sudo apt install -y --no-upgrade --no-install-recommends \(pkg.name)
                     fi
@@ -76,8 +100,19 @@ local function genApt(pkg: apt.Package): String = new Listing {
                 fi
             """
         else throw("unsupported pkg \(pkg.name) state: \(pkg.state)")
-    }.toList().filter((cmd) -> cmd != "").join("\n")
+    }
+}
 
-local function functionName(resource): String = "_" + resource.id.replaceAll(
-    Regex(#"[^0-9a-zA-Z_]"#), "__"
-)
+// toList().filter((cmd) -> cmd != "").join("\n")
+
+class FsFileGen extends Gen {
+    file: fs.File
+    fixed id = file.id
+
+    fixed result = new Listing {
+        "TODO \(file.path)"
+    }
+}
+
+local function deepToDynamic(x: base.Typed): Dynamic = x.toDynamic().toMap().mapValues((k, v) -> maybeToDynamic(v)).toDynamic()
+local function maybeToDynamic(x: Any) = if (x is Typed) deepToDynamic(x) else x

@@ -1,4 +1,8 @@
 #!/bin/bash
+
+set -eu
+set -o pipefail
+
 if [ -z "$1" ]; then
     echo "Usage: $0 <path_to_resources.pkl>"
     exit 1
@@ -20,4 +24,5 @@ output {
 EOF
 
 pkl eval "$output_file"
+
 rm "$output_file"

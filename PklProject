@@ -12,8 +12,9 @@ package {
 }
 
 dependencies {
-  ["pkl-declix"] { uri = "package://pkl.declix.org/pkl-declix@0.0.4" }
+  ["pkl-declix"] { uri = "package://pkl.declix.org/pkl-declix@0.2.1" }
   ["uri"] { uri = "package://pkg.pkl-lang.org/pkl-pantry/pkl.experimental.uri@1.0.3" }
+  ["deepToTyped"] { uri = "package://pkg.pkl-lang.org/pkl-pantry/pkl.experimental.deepToTyped@1.1.0" }
 }
 
 tests = import*("**/tests.pkl").keys.toListing()

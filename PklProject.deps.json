@@ -3,9 +3,16 @@
   "resolvedDependencies": {
     "package://pkl.declix.org/pkl-declix@0": {
       "type": "remote",
-      "uri": "projectpackage://pkl.declix.org/pkl-declix@0.0.4",
+      "uri": "projectpackage://pkl.declix.org/pkl-declix@0.2.1",
       "checksums": {
-        "sha256": "55ef2d7df637405e11cc2598a9085045d9afb4cd4a2b2a30d33fbf3581df5577"
+        "sha256": "58d554c1359fa1191cc7a62ad3f710fa9373facd1e2791903f64799ba40fba65"
+      }
+    },
+    "package://pkg.pkl-lang.org/pkl-pantry/pkl.experimental.deepToTyped@1": {
+      "type": "remote",
+      "uri": "projectpackage://pkg.pkl-lang.org/pkl-pantry/pkl.experimental.deepToTyped@1.1.0",
+      "checksums": {
+        "sha256": "4631c883e7bc0f240edf7fd5f826b89a90ebbd3046f9e8e2df4743a642bd75aa"
       }
     },
     "package://pkg.pkl-lang.org/pkl-pantry/pkl.experimental.uri@1": {
