@@ -7,6 +7,8 @@ import "pkl:math"
 
 function generate(resources): String = gen(toGens(resources)).join("\n")
 
+local commonSh = read("src/common.sh");
+
 local function gen(gens: Listing<Gen>): Listing<String> = new Listing {
     // script header
     """
@@ -14,13 +16,7 @@ local function gen(gens: Listing<Gen>): Listing<String> = new Listing {
     set -eu
     set -o pipefail
     """
-    // helper function
-    """
-    function todo() {
-        echo "NOT IMPLEMENTED: $*" >&2
-        exit 42
-    }
-    """
+    commonSh.text
     // generate implementation functions
     for (gen in gens) {
         ...gen.aux
@@ -31,7 +27,7 @@ local function gen(gens: Listing<Gen>): Listing<String> = new Listing {
         ...gen.result
         "}"
     }
-    // generate check function
+    // generate check
     """
     check() {
         local status
@@ -43,8 +39,26 @@ local function gen(gens: Listing<Gen>): Listing<String> = new Listing {
             """
         }
     "}"
-    // generate apply function
-    "apply() {"
+    // generate diff
+    """
+    diff() {
+        local status
+    """
+        for (gen in gens) {
+            """
+                status=$(\(gen.functionName) "diff")
+                if [ -n "$status" ]; then
+                    printf "\(gen.id)\\n" 
+                    printf "$status\\n"
+                fi
+            """
+        }
+    "}"
+    // generate apply
+    """
+    apply() {
+        local status
+    """
         for (gen in gens) {
             """
                 status=$(\(gen.functionName) "apply")
@@ -62,8 +76,11 @@ local function gen(gens: Listing<Gen>): Listing<String> = new Listing {
         apply)
             apply
             ;;
+        diff)
+            diff
+            ;;
         *)
-            echo "Usage: $0 {check|apply}"
+            echo "Usage: $0 {check|diff|apply}"
             exit 1
             ;;
     esac
@@ -97,40 +114,10 @@ class AptPackageGen extends Gen {
     pkg: apt.Package
     fixed id = pkg.id
 
-    fixed result = new Listing {
+    fixed result = new Listing { 
         """
-            local status=$(dpkg-query -W -f='${db:Status-Abbrev}' \(pkg.name) 2>/dev/null)
-        """
-        ...if (pkg.state == "installed") new Listing {
-            """
-                if [ "$status" != "ii " ]; then
-                    if [ "$action" == "check" ]; then
-                        echo "missing"
-                    elif [ "$action" == "apply" ]; then
-            """
-            if (pkg.updateBeforeInstall) "            sudo apt-get update" else ""
-            """
-                        sudo apt-get install -y --no-upgrade --no-install-recommends \(pkg.name)
-                    fi
-                else
-                    echo "ok"
-                fi
-            """
-        }
-        else if (pkg.state == "missing") new Listing {
-            """
-                if [ "$status" != "" ]; then
-                    if [ "$action" == "check" ]; then
-                        echo "$status"
-                    elif [ "$action" == "apply" ]; then
-                        sudo apt-get remove -y \(pkg.name)
-                    fi
-                else
-                    echo "ok"
-                fi
-            """
-        }
-        else throw("unsupported pkg \(id) state: \(pkg.state)")
+        __apt_package "$action" "\(pkg.name)" "\(pkg.state)" "\(pkg.updateBeforeInstall)"
+        """ 
     }
 }
 
@@ -140,93 +127,26 @@ class FsFileGen extends Gen {
     file: fs.File
     fixed id = file.id
 
-    fixed result: Listing<String> = 
+    fixed result = new Listing { 
         if (file.state is declix.Missing) 
-            throw("TODO \(file.path)")
+            """
+            __fs_file "$action" "\(file.path)" "missing"
+            """ 
         else if (file.state is fs.FilePresent)
-            present(file.state as fs.FilePresent)
+            let (state = file.state as fs.FilePresent)
+            """
+            __fs_file "$action" "\(file.path)" "present" "\(contentSha256(state.content))" "\(state.owner)" "\(state.group)" "\(state.permissions)"
+            """ 
         else
             throw("TODO \(file.path)")
-
-    local function present(state: fs.FilePresent): Listing<String> = new Listing {
-            """
-                local path="\(file.path)"
-                local expectedHash="\(contentSha256(state.content))"
-                local expectedOwner="\(state.owner)"
-                local expectedGroup="\(state.group)"
-                local expectedPermissions="\(state.permissions)"
-
-                if test -f "$path"; then
-                    local hash=""
-                    read -r hash _ < <(sudo sha256sum "$path")
-                    local owner=$(sudo stat --printf="%U" "$path")
-                    local group=$(sudo stat --printf="%G" "$path")
-                    local permissions=$(sudo stat --printf="%a" "$path")
-
-                    if [ "$action" == "check" ]; then
-                        if [ "$hash" != "$expectedHash" ]; then
-                            echo "$hash != $expectedHash"
-                            exit
-                        fi
-                        if [ "$owner" != "$expectedOwner" ]; then
-                            echo "owner: $owner != $expectedOwner"
-                            exit
-                        fi
-
-                        if [ "$group" != "$expectedGroup" ]; then
-                            echo "group: $group != $expectedGroup"
-                            exit
-                        fi
-
-                        if [ "$permissions" != "$expectedPermissions" ]; then
-                            echo "permissions: $permissions != $expectedPermissions"
-                            exit
-                        fi
-
-                        echo "ok"
-                    elif [ "$action" == "apply" ]; then
-                        if [ "$hash" != "$expectedHash" ]; then
-                            \(contentFunctionName)
-                            echo "content"
-                        fi
-
-                        if [ "$owner" != "$expectedOwner" ]; then
-                            sudo chown $expectedOwner "$path"
-                            echo "owner: $owner"
-                        fi
-
-                        if [ "$group" != "$expectedGroup" ]; then
-                            sudo chgrp $expectedGroup "$path"
-                            echo "group: $group"
-                        fi
-
-                        if [ "$permissions" != "$expectedPermissions" ]; then
-                            sudo chmod $expectedPermissions "$path"
-                            echo "permissions: $permissions"
-                        fi                 
-
-                        echo "ok"       
-                    fi
-                else
-                    if [ "$action" == "check" ]; then
-                        echo "missing"
-                    elif [ "$action" == "apply" ]; then
-                        \(contentFunctionName)
-                        sudo chown $expectedOwner "$path"
-                        sudo chgrp $expectedGroup "$path"
-                        sudo chmod $expectedPermissions "$path"
-                        echo "$expectedHash"
-                    fi
-                fi
-            """
     }
 
-    fixed contentFunctionName = "__content__\(functionName)"
     aux = if (file.state is fs.FilePresent) new Listing {
+        let (content = (file.state as fs.FilePresent).content)
         """
-        function \(contentFunctionName)() {
-            local content="\(encodeContentBase64((file.state as fs.FilePresent).content))"
-            echo $content | base64 --decode | sudo tee "\(file.path)" > /dev/null
+        function __content__\(content.sha256)() {
+            local content="\(encodeContentBase64(content))"
+            echo $content | base64 --decode
         }
         """
     } else new Listing { }
