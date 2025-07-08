@@ -1,2 +1,32 @@
 .jj/
 .pkl-lsp/
+
+# Local development files
+local/
+
+# Generated test scripts
+tests/*/generated.sh
+
+# Temporary files
+*.tmp
+*.temp
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Mise cache
+.mise/
+
+# Test outputs
+/tmp/test_*
+/tmp/gen_*
