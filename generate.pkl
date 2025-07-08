@@ -1,6 +1,6 @@
-import "package://pkl.declix.org/pkl-declix@0.2.1#/declix.pkl"
-import "package://pkl.declix.org/pkl-declix@0.2.1#/apt/apt.pkl"
-import "package://pkl.declix.org/pkl-declix@0.2.1#/fs/fs.pkl"
+import "package://pkl.declix.org/pkl-declix@0.3.0#/declix.pkl"
+import "package://pkl.declix.org/pkl-declix@0.3.0#/apt/apt.pkl"
+import "package://pkl.declix.org/pkl-declix@0.3.0#/fs/fs.pkl"
 
 import "pkl:base"
 import "pkl:math"
@@ -68,6 +68,11 @@ local function gen(gens: Listing<Gen>): Listing<String> = new Listing {
     "}"
     // main script entrypoint
     """
+    if [ $# -eq 0 ]; then
+        echo "Usage: $0 {check|diff|apply}"
+        exit 1
+    fi
+    
     action=$1
     case "$action" in
         check)
@@ -94,6 +99,8 @@ local function toGen(resource: Any): Gen =
         new AptPackageGen { pkg = resource }
     else if (resource is fs.File) 
         new FsFileGen { file = resource }
+    else if (resource is fs.Dir) 
+        new FsDirGen { dir = resource }
     else 
         throw("unsupported resource type: \(resource.type)")
 
@@ -115,9 +122,16 @@ class AptPackageGen extends Gen {
     fixed id = pkg.id
 
     fixed result = new Listing { 
-        """
-        __apt_package "$action" "\(pkg.name)" "\(pkg.state)" "\(pkg.updateBeforeInstall)"
-        """ 
+        if (pkg.state == "installed")
+            """
+            __apt_installed "$action" "\(pkg.name)" "\(pkg.updateBeforeInstall)"
+            """ 
+        else if (pkg.state == "missing")
+            """
+            __apt_missing "$action" "\(pkg.name)"
+            """ 
+        else
+            throw("Unsupported APT package state: \(pkg.state)")
     }
 }
 
@@ -130,12 +144,12 @@ class FsFileGen extends Gen {
     fixed result = new Listing { 
         if (file.state is declix.Missing) 
             """
-            __fs_file "$action" "\(file.path)" "missing"
+            __file_missing "$action" "\(file.path)"
             """ 
         else if (file.state is fs.FilePresent)
             let (state = file.state as fs.FilePresent)
             """
-            __fs_file "$action" "\(file.path)" "present" "\(contentSha256(state.content))" "\(state.owner)" "\(state.group)" "\(state.permissions)"
+            __file_present "$action" "\(file.path)" "\(contentSha256(state.content))" "\(state.owner)" "\(state.group)" "\(state.permissions)"
             """ 
         else
             throw("TODO \(file.path)")
@@ -150,6 +164,25 @@ class FsFileGen extends Gen {
         }
         """
     } else new Listing { }
+}
+
+class FsDirGen extends Gen {
+    dir: fs.Dir
+    fixed id = dir.id
+
+    fixed result = new Listing { 
+        if (dir.state is declix.Missing) 
+            """
+            __dir_missing "$action" "\(dir.path)"
+            """ 
+        else if (dir.state is fs.DirPresent)
+            let (state = dir.state as fs.DirPresent)
+            """
+            __dir_present "$action" "\(dir.path)" "\(state.owner)" "\(state.group)" "\(state.permissions)"
+            """ 
+        else
+            throw("TODO \(dir.path)")
+    }
 }
 
 local function deepToDynamic(x: base.Typed): Dynamic = x.toDynamic().toMap().mapValues((k, v) -> maybeToDynamic(v)).toDynamic()
