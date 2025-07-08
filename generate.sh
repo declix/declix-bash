@@ -10,7 +10,8 @@ fi
 
 declix_bash_home=$(dirname "$(realpath "$0")")
 
-input="$1"
+# Convert input to absolute path
+input=$(realpath "$1")
 output_file=$(mktemp)
 
 cat <<EOF > "$output_file"
