@@ -1,2 +1,3 @@
 [tools]
 pkl = "latest"
+shellcheck = "latest"
