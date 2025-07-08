@@ -1,0 +1,3 @@
+resources = new Listing {
+    // Empty resource list - should generate valid but empty script
+}

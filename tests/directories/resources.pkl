@@ -1,0 +1,30 @@
+import "package://pkl.declix.org/pkl-declix@0.3.0#/fs/fs.pkl"
+import "package://pkl.declix.org/pkl-declix@0.3.0#/declix.pkl"
+
+resources = new Listing {
+    // Directory that should exist
+    new fs.Dir {
+        path = "/tmp/test-dir-1"
+        state = new fs.DirPresent {
+            owner = "nobody"
+            group = "nogroup"
+            permissions = "755"
+        }
+    }
+    
+    // Directory that should not exist
+    new fs.Dir {
+        path = "/tmp/test-dir-2"
+        state = new declix.Missing {}
+    }
+    
+    // Directory with specific permissions
+    new fs.Dir {
+        path = "/tmp/test-config-dir"
+        state = new fs.DirPresent {
+            owner = "nobody"
+            group = "nogroup"
+            permissions = "750"
+        }
+    }
+}

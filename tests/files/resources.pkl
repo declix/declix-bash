@@ -1,0 +1,39 @@
+import "package://pkl.declix.org/pkl-declix@0.3.0#/fs/fs.pkl"
+import "package://pkl.declix.org/pkl-declix@0.3.0#/declix.pkl"
+
+resources = new Listing {
+    // File that should exist
+    new fs.File {
+        path = "/tmp/test-file-1.txt"
+        state = new fs.FilePresent {
+            content = """
+                This is a test file
+                Created by declix-bash
+                """
+            owner = "nobody"
+            group = "nogroup"
+            permissions = "644"
+        }
+    }
+    
+    // File that should not exist
+    new fs.File {
+        path = "/tmp/test-file-2.txt"
+        state = new declix.Missing {}
+    }
+    
+    // File with specific content
+    new fs.File {
+        path = "/tmp/test-config.conf"
+        state = new fs.FilePresent {
+            content = """
+                # Configuration file
+                setting1=value1
+                setting2=value2
+                """
+            owner = "nobody"
+            group = "nogroup"
+            permissions = "600"
+        }
+    }
+}

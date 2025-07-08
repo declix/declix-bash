@@ -1,0 +1,3 @@
+apt:curl                                                     ok
+apt:wget                                                     ok
+apt:nonexistent-package                                      ok

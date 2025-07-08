@@ -1,0 +1,187 @@
+# Build test image (depends on declix-bash)
+build: build-base
+    podman build -f Containerfile -t declix-bash-test .
+
+# Build base declix-bash image
+build-base:
+    podman build -f ../Containerfile -t declix-bash ..
+
+# Test script generation for a specific test using local pkl
+test-local-generate-one name:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    
+    echo "Testing generation for '{{name}}' using local pkl..."
+    
+    # Generate script using local generate.sh
+    if ../generate.sh {{justfile_directory()}}/{{name}}/resources.pkl > {{justfile_directory()}}/{{name}}/generated.sh; then
+        echo "✓ Script generated successfully"
+        
+        # Check syntax of generated script
+        if bash -n {{justfile_directory()}}/{{name}}/generated.sh; then
+            echo "✓ Generated script has valid syntax"
+        else
+            echo "✗ Generated script has syntax errors"
+            exit 1
+        fi
+    else
+        echo "✗ Script generation failed"
+        exit 1
+    fi
+
+# Test script generation for a specific test
+test-generate-one name: build-base
+    #!/usr/bin/env bash
+    set -euo pipefail
+    
+    echo "Testing generation for '{{name}}'..."
+    
+    # Generate script and check syntax
+    if podman run --rm -v {{justfile_directory()}}/{{name}}:/work declix-bash /work/resources.pkl > {{justfile_directory()}}/{{name}}/generated.sh; then
+        echo "✓ Script generated successfully"
+        
+        # Check syntax of generated script
+        if bash -n {{justfile_directory()}}/{{name}}/generated.sh; then
+            echo "✓ Generated script has valid syntax"
+        else
+            echo "✗ Generated script has syntax errors"
+            exit 1
+        fi
+    else
+        echo "✗ Script generation failed"
+        exit 1
+    fi
+
+# Helper target to execute a given target for each test directory
+_test TARGET:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    
+    # Colors for output
+    GREEN='\033[0;32m'
+    RED='\033[0;31m'
+    NC='\033[0m' # No Color
+    
+    TESTS_PASSED=0
+    TESTS_FAILED=0
+    
+    echo "Finding tests..."
+    
+    # Find all test directories that contain resources.pkl
+    TEST_DIRS=$(find {{justfile_directory()}} -name "resources.pkl" -exec dirname {} \; | sort)
+    
+    if [ -z "$TEST_DIRS" ]; then
+        echo "No tests found"
+        exit 1
+    fi
+    
+    echo "Found tests: $(echo $TEST_DIRS | wc -w)"
+    echo
+    
+    # Run target for each test
+    for test_dir in $TEST_DIRS; do
+        test_name=$(basename "$test_dir")
+        echo -n "Running {{TARGET}} '$test_name'... "
+        
+        if just {{TARGET}} "$test_name" > /tmp/{{TARGET}}_output_$test_name 2>&1; then
+            echo -e "${GREEN}✓${NC}"
+            TESTS_PASSED=$((TESTS_PASSED + 1))
+        else
+            echo -e "${RED}✗${NC}"
+            echo "  Error output:"
+            tail -20 /tmp/{{TARGET}}_output_$test_name | sed 's/^/    /'
+            TESTS_FAILED=$((TESTS_FAILED + 1))
+        fi
+    done
+    
+    echo
+    echo "=== {{TARGET}} Summary ==="
+    echo "Passed: $TESTS_PASSED"
+    echo "Failed: $TESTS_FAILED"
+    echo
+    
+    if [ $TESTS_FAILED -eq 0 ]; then
+        echo -e "${GREEN}All {{TARGET}} passed!${NC}"
+        exit 0
+    else
+        echo -e "${RED}Some {{TARGET}} failed!${NC}"
+        exit 1
+    fi
+
+# Generate script using podman container (outputs to stdout)
+generate path: build-base
+    #!/usr/bin/env bash
+    set -euo pipefail
+    
+    # Handle both absolute and relative paths
+    if [[ "{{path}}" == /* ]]; then
+        pkl_file="{{path}}"
+    else
+        pkl_file="{{justfile_directory()}}/{{path}}"
+    fi
+    
+    podman run --rm -v "$pkl_file":/work/resources.pkl declix-bash /work/resources.pkl
+
+# Generate script using local pkl (outputs to stdout)
+generate-local path:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    
+    # Handle both absolute and relative paths
+    if [[ "{{path}}" == /* ]]; then
+        pkl_file="{{path}}"
+    else
+        pkl_file="{{justfile_directory()}}/{{path}}"
+    fi
+    
+    ../generate.sh "$pkl_file"
+
+# Test script generation using local pkl (no containers)
+test-local-generate:
+    just _test test-local-generate-one
+
+# Test only script generation (no execution)
+test-generate: build-base
+    just _test test-generate-one
+
+# Run all tests by finding and executing each individually
+test: build
+    just _test test-one
+
+# Run a specific test
+test-one name: build
+    #!/usr/bin/env bash
+    set -euo pipefail
+    
+    echo "Generating script for test '{{name}}'..."
+    podman run --rm -v {{justfile_directory()}}/{{name}}:/work declix-bash /work/resources.pkl > {{justfile_directory()}}/{{name}}/generated.sh
+    
+    echo "Running test '{{name}}'..."
+    podman run --rm \
+        -v {{justfile_directory()}}/{{name}}:/test:rw \
+        declix-bash-test bash -c "./run-test.sh /test"
+
+# Run tests with interactive shell for debugging
+test-interactive: build
+    podman run --rm -it \
+        -v {{justfile_directory()}}:/host:ro \
+        declix-bash-test bash
+
+# Show test output for debugging
+test-debug name: build
+    #!/usr/bin/env bash
+    set -euo pipefail
+    
+    echo "Generating script for test '{{name}}'..."
+    podman run --rm -v {{justfile_directory()}}/{{name}}:/work declix-bash /work/resources.pkl > {{justfile_directory()}}/{{name}}/generated.sh
+    
+    echo "Running test '{{name}}' with debug output..."
+    podman run --rm \
+        -v {{justfile_directory()}}/{{name}}:/test:rw \
+        declix-bash-test bash -c "bash -x ./run-test.sh /test"
+
+# Clean up test artifacts
+clean:
+    podman rmi -f declix-bash-test || true
+    podman rmi -f declix-bash || true
+    rm -f /tmp/test_output_*

@@ -1,0 +1,16 @@
+import "package://pkl.declix.org/pkl-declix@0.3.0#/apt/apt.pkl"
+
+resources = new Listing {
+    new apt.Package { 
+        name = "curl"
+        state = "installed" 
+    }
+    new apt.Package { 
+        name = "wget"
+        state = "installed" 
+    }
+    new apt.Package { 
+        name = "nonexistent-package"
+        state = "missing" 
+    }
+}

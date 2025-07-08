@@ -1,0 +1,20 @@
+FROM debian:12-slim
+
+# Install minimal test dependencies
+RUN apt-get update && apt-get install -y \
+    sudo \
+    bash \
+    coreutils \
+    grep \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create working directory
+WORKDIR /app/tests
+
+# Copy only test runner script
+COPY run-test.sh ./
+RUN chmod +x run-test.sh
+
+# Run as root (no user switching needed)
+# Default to bash
+CMD ["bash"]

@@ -1,0 +1,3 @@
+dir:/tmp/test-dir-1                                          ok
+dir:/tmp/test-dir-2                                          ok
+dir:/tmp/test-config-dir                                     ok
