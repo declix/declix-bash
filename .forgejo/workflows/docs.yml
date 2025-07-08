@@ -1,0 +1,119 @@
+name: Documentation
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - '**.md'
+      - 'examples/**'
+      - 'CLAUDE.md'
+
+jobs:
+  validate-docs:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install mise
+      uses: jdx/mise-action@v2
+
+    - name: Install dependencies
+      run: |
+        mise install
+        echo "$HOME/.local/share/mise/shims" >> $GITHUB_PATH
+
+    - name: Validate examples
+      run: |
+        echo "Validating examples can be generated..."
+        cd tests
+        just test-local-generate
+
+    - name: Check documentation links
+      run: |
+        # Simple link validation for markdown files
+        echo "Checking for broken internal links..."
+        
+        # Find all markdown files
+        find . -name "*.md" | while read -r file; do
+          echo "Checking $file..."
+          
+          # Extract relative links and check if files exist
+          grep -o '\[.*\](\..*\.md)' "$file" | grep -o '(\..*\.md)' | tr -d '()' | while read -r link; do
+            if [ ! -f "$link" ]; then
+              echo "ERROR: Broken link in $file: $link"
+              exit 1
+            fi
+          done
+        done
+
+    - name: Validate CLAUDE.md completeness
+      run: |
+        if [ -f "CLAUDE.md" ]; then
+          echo "Checking CLAUDE.md has required sections..."
+          
+          required_sections=("Commands" "Architecture" "Dependencies")
+          for section in "${required_sections[@]}"; do
+            if ! grep -q "$section" CLAUDE.md; then
+              echo "WARNING: CLAUDE.md missing section: $section"
+            fi
+          done
+          
+          echo "CLAUDE.md validation complete"
+        else
+          echo "ERROR: CLAUDE.md not found"
+          exit 1
+        fi
+
+  generate-examples:
+    runs-on: ubuntu-latest
+    needs: validate-docs
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install mise
+      uses: jdx/mise-action@v2
+
+    - name: Install dependencies
+      run: |
+        mise install
+        echo "$HOME/.local/share/mise/shims" >> $GITHUB_PATH
+
+    - name: Generate example outputs
+      run: |
+        echo "Generating example outputs for documentation..."
+        
+        mkdir -p docs/examples
+        
+        # Generate scripts for each example
+        for example in examples/*.pkl; do
+          if [ -f "$example" ]; then
+            name=$(basename "$example" .pkl)
+            echo "Generating output for $name..."
+            
+            # Generate the script
+            ./generate.sh "$example" > "docs/examples/$name.sh"
+            
+            # Create a markdown file showing the example
+            cat > "docs/examples/$name.md" << EOF
+        # Example: $name
+        
+        ## Resource Definition (\`$example\`)
+        
+        \`\`\`pkl
+        $(cat "$example")
+        \`\`\`
+        
+        ## Generated Script
+        
+        \`\`\`bash
+        $(head -50 "docs/examples/$name.sh")
+        \`\`\`
+        EOF
+          fi
+        done
+        
+        echo "Example documentation generated in docs/examples/"

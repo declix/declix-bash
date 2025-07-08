@@ -1,0 +1,87 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install mise
+      uses: jdx/mise-action@v2
+
+    - name: Install dependencies
+      run: |
+        mise install
+        echo "$HOME/.local/share/mise/shims" >> $GITHUB_PATH
+
+    - name: Run shellcheck
+      run: just shellcheck
+
+    - name: Test script generation
+      run: |
+        cd tests
+        just test-local-generate
+
+  container-test:
+    runs-on: ubuntu-latest
+    needs: test
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install mise
+      uses: jdx/mise-action@v2
+
+    - name: Install dependencies
+      run: |
+        mise install
+        echo "$HOME/.local/share/mise/shims" >> $GITHUB_PATH
+
+    - name: Build declix-bash image
+      run: docker build -f Containerfile -t declix-bash .
+
+    - name: Build test image
+      run: |
+        cd tests
+        docker build -f Containerfile -t declix-bash-test .
+
+    - name: Run container tests
+      run: |
+        cd tests
+        # Create docker-compatible Justfile
+        sed 's/podman/docker/g' Justfile > Justfile.docker
+        just -f Justfile.docker test
+
+  lint:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install mise
+      uses: jdx/mise-action@v2
+
+    - name: Install dependencies
+      run: |
+        mise install
+        echo "$HOME/.local/share/mise/shims" >> $GITHUB_PATH
+
+    - name: Run shellcheck
+      run: just shellcheck
+
+    - name: Check generated scripts syntax
+      run: |
+        cd tests
+        just test-local-generate
+        # Check syntax of all generated scripts
+        find . -name "generated.sh" | xargs bash -n
