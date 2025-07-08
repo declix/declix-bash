@@ -1,0 +1,4 @@
+resources = new Listing {
+    // Empty resource configuration
+    // Add your resources here
+}

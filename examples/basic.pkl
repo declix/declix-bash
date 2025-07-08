@@ -1,0 +1,43 @@
+import "package://pkl.declix.org/pkl-declix@0.3.0#/apt/apt.pkl"
+import "package://pkl.declix.org/pkl-declix@0.3.0#/fs/fs.pkl"
+
+resources = new Listing {
+    // Install basic tools
+    new apt.Package { 
+        name = "tmux"
+        state = "installed" 
+    }
+    new apt.Package { 
+        name = "vim"
+        state = "installed" 
+    }
+    new apt.Package { 
+        name = "git"
+        state = "installed" 
+    }
+    new apt.Package { 
+        name = "mc"
+        state = "installed" 
+    }
+    new apt.Package { 
+        name = "htop"
+        state = "installed" 
+    }
+    
+    // Create a configuration file
+    new fs.File {
+        path = "/tmp/example.conf"
+        state = new fs.FilePresent {
+            content = """
+                # Example configuration file
+                # Created by declix-bash
+                
+                setting1=value1
+                setting2=value2
+                """
+            owner = "root"
+            group = "root"
+            permissions = "644"
+        }
+    }
+}
