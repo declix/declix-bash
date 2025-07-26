@@ -113,21 +113,41 @@ function __file_present() {
             fi
             echo "ok"
         elif [ "$action" == "diff" ]; then
+            local hasChanges=false
             if [ "$hash" != "$expectedHash" ]; then
                 echo "Content differs:"
+                echo "  Current hash:  $hash"
+                echo "  Expected hash: $expectedHash"
+                echo "  File size: $(sudo wc -c < "$path") bytes"
+                echo "  Expected size: $("$contentFunction" | wc -c) bytes"
                 local tmp
                 tmp=$(mktemp)
                 "$contentFunction" > "$tmp"
-                sudo diff "$path" "$tmp" || true
+                echo "  Content diff:"
+                sudo diff -u "$path" "$tmp" || true
+                rm "$tmp"
+                hasChanges=true
             fi
             if [ "$owner" != "$expectedOwner" ]; then
-                echo "Owner: $owner -> $expectedOwner"
+                echo "Owner differs:"
+                echo "  Current:  $owner"
+                echo "  Expected: $expectedOwner"
+                hasChanges=true
             fi
             if [ "$group" != "$expectedGroup" ]; then
-                echo "Group: $group -> $expectedGroup"
+                echo "Group differs:"
+                echo "  Current:  $group"
+                echo "  Expected: $expectedGroup"
+                hasChanges=true
             fi
             if [ "$permissions" != "$expectedPermissions" ]; then
-                echo "Permissions: $permissions -> $expectedPermissions"
+                echo "Permissions differ:"
+                echo "  Current:  $permissions"
+                echo "  Expected: $expectedPermissions"
+                hasChanges=true
+            fi
+            if [ "$hasChanges" = false ]; then
+                echo ""
             fi
         elif [ "$action" == "apply" ]; then
             local changes=""
@@ -164,7 +184,13 @@ function __file_present() {
         if [ "$action" == "check" ]; then
             echo "needs creation"
         elif [ "$action" == "diff" ]; then
-            echo "File does not exist, will be created"
+            echo "File does not exist, will be created:"
+            echo "  Path: $path"
+            echo "  Expected owner: $expectedOwner"
+            echo "  Expected group: $expectedGroup"
+            echo "  Expected permissions: $expectedPermissions"
+            echo "  Expected hash: $expectedHash"
+            echo "  Expected size: $("$contentFunction" | wc -c) bytes"
         elif [ "$action" == "apply" ]; then
             # Create directory if it doesn't exist
             local dir

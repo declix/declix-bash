@@ -193,7 +193,12 @@ const local function encodeContentBase64(content: declix.Content): String =
         content.base64
     else if (content is declix.UrlContent)
         let (urlContent = content as declix.UrlContent)
-        read(urlContent.url).base64
+        let (downloadedContent = read(urlContent.url))
+        let (actualHash = downloadedContent.sha256)
+        if (actualHash != urlContent.sha256)
+            throw("Hash mismatch for URL \(urlContent.url): expected \(urlContent.sha256), got \(actualHash)")
+        else
+            downloadedContent.base64
     else
         throw("unsupported content: \(content)")
 
