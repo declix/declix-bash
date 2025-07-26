@@ -21,9 +21,9 @@ function __apt_installed() {
             echo "Package will be installed: $package"
         elif [ "$action" == "apply" ]; then
             if [ "$update" == "true" ]; then
-                sudo apt-get update
+                sudo DEBIAN_FRONTEND=noninteractive apt-get update
             fi
-            sudo apt-get install -y --no-upgrade --no-install-recommends "$package"
+            sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-upgrade --no-install-recommends "$package"
             echo "installed"
         else
             todo "$action is not implemented for apt_installed"
@@ -55,7 +55,7 @@ function __apt_missing() {
         elif [ "$action" == "diff" ]; then
             echo "Package will be removed: $package"
         elif [ "$action" == "apply" ]; then
-            sudo apt-get remove -y "$package"
+            sudo DEBIAN_FRONTEND=noninteractive apt-get remove -y "$package"
             echo "removed"
         else
             todo "$action is not implemented for apt_missing"
