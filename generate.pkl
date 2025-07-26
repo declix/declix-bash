@@ -1,6 +1,6 @@
-import "package://pkl.declix.org/pkl-declix@0.3.0#/declix.pkl"
-import "package://pkl.declix.org/pkl-declix@0.3.0#/apt/apt.pkl"
-import "package://pkl.declix.org/pkl-declix@0.3.0#/fs/fs.pkl"
+import "package://pkl.declix.org/pkl-declix@0.3.1#/declix.pkl"
+import "package://pkl.declix.org/pkl-declix@0.3.1#/apt/apt.pkl"
+import "package://pkl.declix.org/pkl-declix@0.3.1#/fs/fs.pkl"
 
 import "pkl:base"
 import "pkl:math"
