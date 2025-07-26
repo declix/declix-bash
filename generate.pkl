@@ -1,6 +1,7 @@
 import "package://pkl.declix.org/pkl-declix@0.3.1#/declix.pkl"
 import "package://pkl.declix.org/pkl-declix@0.3.1#/apt/apt.pkl"
 import "package://pkl.declix.org/pkl-declix@0.3.1#/fs/fs.pkl"
+import "package://pkl.declix.org/pkl-declix@0.3.1#/systemd/systemd.pkl"
 
 import "pkl:base"
 import "pkl:math"
@@ -101,6 +102,8 @@ local function toGen(resource: Any): Gen =
         new FsFileGen { file = resource }
     else if (resource is fs.Dir) 
         new FsDirGen { dir = resource }
+    else if (resource is systemd.Unit)
+        new SystemdUnitGen { unit = resource }
     else 
         throw("unsupported resource type: \(resource.type)")
 
@@ -182,6 +185,44 @@ class FsDirGen extends Gen {
             """ 
         else
             throw("TODO \(dir.path)")
+    }
+}
+
+class SystemdUnitGen extends Gen {
+    unit: systemd.Unit
+    fixed id = unit.id
+    
+    fixed result = new Listing {
+        let (stateType = 
+            if (unit.state is systemd.Enabled) "enabled"
+            else if (unit.state is systemd.Disabled) "disabled"
+            else if (unit.state is systemd.Masked) "masked"
+            else if (unit.state is systemd.Missing) "missing"
+            else throw("Unknown systemd state type")
+        )
+        let (daemonReload = 
+            if (unit.state is systemd.Enabled) (unit.state as systemd.Enabled).daemonReload
+            else if (unit.state is systemd.Disabled) (unit.state as systemd.Disabled).daemonReload
+            else if (unit.state is systemd.Masked) (unit.state as systemd.Masked).daemonReload
+            else if (unit.state is systemd.Missing) (unit.state as systemd.Missing).daemonReload
+            else false
+        )
+        let (active = 
+            if (unit.state is systemd.Enabled) (unit.state as systemd.Enabled).active
+            else false
+        )
+        let (autoStart = 
+            if (unit.state is systemd.Enabled) (unit.state as systemd.Enabled).autoStart
+            else if (unit.state is systemd.Disabled) (unit.state as systemd.Disabled).autoStart
+            else false
+        )
+        let (stopIfRunning = 
+            if (unit.state is systemd.Disabled) (unit.state as systemd.Disabled).stopIfRunning
+            else false
+        )
+        """
+        __systemd_unit_present "$action" "\(unit.name)" "\(stateType)" "\(daemonReload)" "\(active)" "\(autoStart)" "\(stopIfRunning)"
+        """
     }
 }
 

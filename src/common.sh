@@ -118,7 +118,7 @@ function __file_present() {
                 echo "Content differs:"
                 echo "  Current hash:  $hash"
                 echo "  Expected hash: $expectedHash"
-                echo "  File size: $(sudo wc -c < "$path") bytes"
+                echo "  File size: $(sudo cat "$path" | wc -c) bytes"
                 echo "  Expected size: $("$contentFunction" | wc -c) bytes"
                 local tmp
                 tmp=$(mktemp)
@@ -355,5 +355,209 @@ function __dir_missing() {
         else
             todo "$action is not implemented for dir_missing"
         fi
+    fi
+}
+# __systemd_unit_present(action, unit_name, state_type, daemon_reload, active, auto_start, stop_if_running)
+function __systemd_unit_present() {
+    local action=$1
+    local unit_name=$2
+    local state_type=$3
+    local daemon_reload=$4
+    local active=$5
+    # shellcheck disable=SC2034
+    local auto_start=$6  # Used in conditional logic below
+    local stop_if_running=$7
+    
+    # Check if unit file exists
+    local unit_file_exists=false
+    if systemctl list-unit-files --no-pager --no-legend "$unit_name" 2>/dev/null  < /dev/null |  grep -q "$unit_name"; then
+        unit_file_exists=true
+    fi
+    
+    # Get current enabled state
+    local current_enabled_state="unknown"
+    if [ "$unit_file_exists" = true ]; then
+        current_enabled_state=$(systemctl is-enabled "$unit_name" 2>/dev/null || echo "unknown")
+    fi
+    
+    # Get current active state
+    local current_active_state="unknown"
+    if [ "$unit_file_exists" = true ]; then
+        current_active_state=$(systemctl is-active "$unit_name" 2>/dev/null || echo "unknown")
+    fi
+    
+    if [ "$action" == "check" ]; then
+        case "$state_type" in
+            enabled)
+                if [ "$unit_file_exists" = false ]; then
+                    echo "unit file missing"
+                elif [ "$current_enabled_state" \!= "enabled" ]; then
+                    echo "needs enabling"
+                elif [ "$active" = "true" ] && [ "$current_active_state" \!= "active" ]; then
+                    echo "needs start"
+                else
+                    echo "ok"
+                fi
+                ;;
+            disabled)
+                if [ "$unit_file_exists" = false ]; then
+                    echo "unit file missing"
+                elif [ "$current_enabled_state" \!= "disabled" ]; then
+                    echo "needs disabling"
+                elif [ "$stop_if_running" = "true" ] && [ "$current_active_state" = "active" ]; then
+                    echo "needs stop"
+                else
+                    echo "ok"
+                fi
+                ;;
+            masked)
+                if [ "$unit_file_exists" = false ]; then
+                    echo "unit file missing"
+                elif [ "$current_enabled_state" \!= "masked" ]; then
+                    echo "needs masking"
+                else
+                    echo "ok"
+                fi
+                ;;
+            missing)
+                if [ "$unit_file_exists" = true ]; then
+                    echo "needs removal"
+                else
+                    echo "ok"
+                fi
+                ;;
+        esac
+    elif [ "$action" == "diff" ]; then
+        case "$state_type" in
+            enabled)
+                if [ "$unit_file_exists" = false ]; then
+                    echo "Unit file missing: $unit_name"
+                else
+                    if [ "$current_enabled_state" \!= "enabled" ]; then
+                        echo "Unit enablement state:"
+                        echo "  Current:  $current_enabled_state"
+                        echo "  Expected: enabled"
+                    fi
+                    if [ "$active" = "true" ] && [ "$current_active_state" \!= "active" ]; then
+                        echo "Unit active state:"
+                        echo "  Current:  $current_active_state"
+                        echo "  Expected: active"
+                    fi
+                fi
+                ;;
+            disabled)
+                if [ "$unit_file_exists" = false ]; then
+                    echo "Unit file missing: $unit_name"
+                else
+                    if [ "$current_enabled_state" \!= "disabled" ]; then
+                        echo "Unit enablement state:"
+                        echo "  Current:  $current_enabled_state"
+                        echo "  Expected: disabled"
+                    fi
+                    if [ "$stop_if_running" = "true" ] && [ "$current_active_state" = "active" ]; then
+                        echo "Unit active state:"
+                        echo "  Current:  $current_active_state"
+                        echo "  Expected: inactive"
+                    fi
+                fi
+                ;;
+            masked)
+                if [ "$unit_file_exists" = false ]; then
+                    echo "Unit file missing: $unit_name"
+                elif [ "$current_enabled_state" \!= "masked" ]; then
+                    echo "Unit enablement state:"
+                    echo "  Current:  $current_enabled_state"
+                    echo "  Expected: masked"
+                fi
+                ;;
+            missing)
+                if [ "$unit_file_exists" = true ]; then
+                    echo "Unit exists but should be removed: $unit_name"
+                fi
+                ;;
+        esac
+    elif [ "$action" == "apply" ]; then
+        local changes=""
+        
+        # Run daemon-reload if requested
+        if [ "$daemon_reload" = "true" ] && [ "$unit_file_exists" = true ]; then
+            sudo systemctl daemon-reload
+        fi
+        
+        case "$state_type" in
+            enabled)
+                if [ "$unit_file_exists" = false ]; then
+                    echo "unit file missing"
+                    return
+                fi
+                
+                # Enable unit if needed
+                if [ "$current_enabled_state" \!= "enabled" ]; then
+                    sudo systemctl enable "$unit_name"
+                    changes="${changes}enabled "
+                fi
+                
+                # Start unit if needed
+                if [ "$active" = "true" ] && [ "$current_active_state" \!= "active" ]; then
+                    sudo systemctl start "$unit_name"
+                    changes="${changes}started "
+                fi
+                
+                if [ -n "$changes" ]; then
+                    echo "updated ($changes)"
+                else
+                    echo "ok"
+                fi
+                ;;
+            disabled)
+                if [ "$unit_file_exists" = false ]; then
+                    echo "unit file missing"
+                    return
+                fi
+                
+                # Stop unit if needed
+                if [ "$stop_if_running" = "true" ] && [ "$current_active_state" = "active" ]; then
+                    sudo systemctl stop "$unit_name"
+                    changes="${changes}stopped "
+                fi
+                
+                # Disable unit if needed
+                if [ "$current_enabled_state" \!= "disabled" ]; then
+                    sudo systemctl disable "$unit_name"
+                    changes="${changes}disabled "
+                fi
+                
+                if [ -n "$changes" ]; then
+                    echo "updated ($changes)"
+                else
+                    echo "ok"
+                fi
+                ;;
+            masked)
+                if [ "$unit_file_exists" = false ]; then
+                    echo "unit file missing"
+                    return
+                fi
+                
+                # Mask unit if needed
+                if [ "$current_enabled_state" \!= "masked" ]; then
+                    sudo systemctl mask "$unit_name"
+                    changes="${changes}masked "
+                fi
+                
+                if [ -n "$changes" ]; then
+                    echo "updated ($changes)"
+                else
+                    echo "ok"
+                fi
+                ;;
+            missing)
+                # This state type would be used for cleanup
+                # For now, we don't remove unit files
+                echo "ok"
+                ;;
+        esac
+    else
+        todo "$action is not implemented for systemd_unit_present"
     fi
 }
