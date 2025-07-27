@@ -2,6 +2,7 @@ import "package://pkl.declix.org/pkl-declix@0.4.0#/declix.pkl"
 import "package://pkl.declix.org/pkl-declix@0.4.0#/apt/apt.pkl"
 import "package://pkl.declix.org/pkl-declix@0.4.0#/fs/fs.pkl"
 import "package://pkl.declix.org/pkl-declix@0.4.0#/systemd/systemd.pkl"
+import "../pkl-declix/user/user.pkl"
 
 import "pkl:base"
 import "pkl:math"
@@ -108,6 +109,10 @@ local function toGen(resource: Any): Gen =
         new FsDirGen { dir = resource }
     else if (resource is systemd.Unit)
         new SystemdUnitGen { unit = resource }
+    else if (resource is user.User)
+        new UserGen { user = resource }
+    else if (resource is user.Group)
+        new GroupGen { group = resource }
     else if (resource.type == "apt")
         new AptPackageGen { pkg = resource }
     else if (resource.type == "file" || resource.type == "fs:file")
@@ -116,6 +121,10 @@ local function toGen(resource: Any): Gen =
         new FsDirGen { dir = resource }
     else if (resource.type == "systemd")
         new SystemdUnitGen { unit = resource }
+    else if (resource.type == "user")
+        new UserGen { user = resource }
+    else if (resource.type == "group")
+        new GroupGen { group = resource }
     else 
         throw("unsupported resource type: \(resource.type)")
 
@@ -214,6 +223,47 @@ class SystemdUnitGen extends Gen {
         """
         __systemd_unit_present "$action" "\(unit.name)" "\(stateType)" "\(daemonReload)" "\(active)" "\(autoStart)" "\(stopIfRunning)"
         """
+    }
+}
+
+class UserGen extends Gen {
+    user: Dynamic
+    fixed id = user.id
+    
+    fixed result = new Listing {
+        if (user.state is user.UserPresent || (user.state.hasProperty("uid") || user.state.hasProperty("shell") || user.state.hasProperty("comment")))
+            let (state = user.state)
+            let (uid = if (state.hasProperty("uid")) state.uid else "")
+            let (gid = if (state.hasProperty("gid")) state.gid else "")
+            let (comment = if (state.hasProperty("comment")) state.comment else "")
+            let (home = if (state.hasProperty("home")) state.home else "/nonexistent")
+            let (shell = if (state.hasProperty("shell")) state.shell else "/usr/sbin/nologin")
+            """
+            __user_present "$action" "\(user.name)" "\(uid)" "\(gid)" "\(comment)" "\(home)" "\(shell)"
+            """
+        else
+            """
+            __user_absent "$action" "\(user.name)"
+            """
+    }
+}
+
+class GroupGen extends Gen {
+    group: Dynamic
+    fixed id = group.id
+    
+    fixed result = new Listing {
+        if (group.state is user.GroupPresent || (group.state.hasProperty("gid") || group.state.hasProperty("members")))
+            let (state = group.state)
+            let (gid = if (state.hasProperty("gid")) state.gid else "")
+            let (members = if (state.hasProperty("members") && state.members != null) state.members.toList().join(",") else "")
+            """
+            __group_present "$action" "\(group.name)" "\(gid)" "\(members)"
+            """
+        else
+            """
+            __group_absent "$action" "\(group.name)"
+            """
     }
 }
 

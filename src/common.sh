@@ -599,3 +599,335 @@ function __systemd_unit_present() {
         todo "$action is not implemented for systemd_unit_present"
     fi
 }
+
+# __user_present(action, name, uid, gid, comment, home, shell)
+function __user_present() {
+    local action=$1
+    local name=$2
+    local uid=$3
+    local gid=$4
+    local comment=$5
+    local home=$6
+    local shell=$7
+    
+    # Check if user exists
+    if id "$name" >/dev/null 2>&1; then
+        local current_uid
+        current_uid=$(id -u "$name")
+        local current_gid
+        current_gid=$(id -g "$name")
+        local current_home
+        current_home=$(getent passwd "$name" | cut -d: -f6)
+        local current_shell
+        current_shell=$(getent passwd "$name" | cut -d: -f7)
+        local current_comment
+        current_comment=$(getent passwd "$name" | cut -d: -f5)
+        
+        if [ "$action" == "check" ]; then
+            local needs_update=""
+            if [ -n "$uid" ] && [ "$current_uid" != "$uid" ]; then
+                needs_update="uid "
+            fi
+            if [ -n "$gid" ] && [ "$current_gid" != "$gid" ]; then
+                needs_update="${needs_update}gid "
+            fi
+            if [ -n "$home" ] && [ "$current_home" != "$home" ]; then
+                needs_update="${needs_update}home "
+            fi
+            if [ -n "$shell" ] && [ "$current_shell" != "$shell" ]; then
+                needs_update="${needs_update}shell "
+            fi
+            if [ -n "$comment" ] && [ "$current_comment" != "$comment" ]; then
+                needs_update="${needs_update}comment "
+            fi
+            
+            if [ -n "$needs_update" ]; then
+                echo "needs update ($needs_update)"
+            else
+                echo "ok"
+            fi
+        elif [ "$action" == "diff" ]; then
+            local has_changes=false
+            if [ -n "$uid" ] && [ "$current_uid" != "$uid" ]; then
+                echo "UID differs:"
+                echo "  Current:  $current_uid"
+                echo "  Expected: $uid"
+                has_changes=true
+            fi
+            if [ -n "$gid" ] && [ "$current_gid" != "$gid" ]; then
+                echo "GID differs:"
+                echo "  Current:  $current_gid"
+                echo "  Expected: $gid"
+                has_changes=true
+            fi
+            if [ -n "$home" ] && [ "$current_home" != "$home" ]; then
+                echo "Home directory differs:"
+                echo "  Current:  $current_home"
+                echo "  Expected: $home"
+                has_changes=true
+            fi
+            if [ -n "$shell" ] && [ "$current_shell" != "$shell" ]; then
+                echo "Shell differs:"
+                echo "  Current:  $current_shell"
+                echo "  Expected: $shell"
+                has_changes=true
+            fi
+            if [ -n "$comment" ] && [ "$current_comment" != "$comment" ]; then
+                echo "Comment differs:"
+                echo "  Current:  $current_comment"
+                echo "  Expected: $comment"
+                has_changes=true
+            fi
+            if [ "$has_changes" = false ]; then
+                echo ""
+            fi
+        elif [ "$action" == "apply" ]; then
+            local changes=""
+            local usermod_args=""
+            
+            if [ -n "$uid" ] && [ "$current_uid" != "$uid" ]; then
+                usermod_args="$usermod_args -u $uid"
+                changes="${changes}uid "
+            fi
+            if [ -n "$gid" ] && [ "$current_gid" != "$gid" ]; then
+                usermod_args="$usermod_args -g $gid"
+                changes="${changes}gid "
+            fi
+            if [ -n "$home" ] && [ "$current_home" != "$home" ]; then
+                usermod_args="$usermod_args -d $home"
+                changes="${changes}home "
+            fi
+            if [ -n "$shell" ] && [ "$current_shell" != "$shell" ]; then
+                usermod_args="$usermod_args -s $shell"
+                changes="${changes}shell "
+            fi
+            if [ -n "$comment" ] && [ "$current_comment" != "$comment" ]; then
+                usermod_args="$usermod_args -c '$comment'"
+                changes="${changes}comment "
+            fi
+            
+            if [ -n "$usermod_args" ]; then
+                sudo usermod $usermod_args "$name"
+            fi
+            
+            
+            if [ -n "$changes" ]; then
+                echo "updated ($changes)"
+            else
+                echo "ok"
+            fi
+        else
+            todo "$action is not implemented for user_present"
+        fi
+    else
+        if [ "$action" == "check" ]; then
+            echo "needs creation"
+        elif [ "$action" == "diff" ]; then
+            echo "User does not exist, will be created:"
+            echo "  Name: $name"
+            if [ -n "$uid" ]; then
+                echo "  UID: $uid"
+            fi
+            if [ -n "$gid" ]; then
+                echo "  GID: $gid"
+            fi
+            if [ -n "$home" ]; then
+                echo "  Home: $home"
+            fi
+            echo "  Shell: $shell"
+            if [ -n "$comment" ]; then
+                echo "  Comment: $comment"
+            fi
+        elif [ "$action" == "apply" ]; then
+            local useradd_args=""
+            
+            if [ -n "$uid" ]; then
+                useradd_args="$useradd_args -u $uid"
+            fi
+            if [ -n "$gid" ]; then
+                useradd_args="$useradd_args -g $gid"
+            fi
+            if [ -n "$home" ]; then
+                useradd_args="$useradd_args -d $home"
+            fi
+            if [ -n "$shell" ]; then
+                useradd_args="$useradd_args -s $shell"
+            else
+                useradd_args="$useradd_args -s /usr/sbin/nologin"
+            fi
+            if [ -n "$comment" ]; then
+                useradd_args="$useradd_args -c '$comment'"
+            fi
+            
+            # Create home directory by default
+            useradd_args="$useradd_args -m"
+            
+            if [ -n "$useradd_args" ]; then
+                eval "sudo useradd $useradd_args \"$name\""
+            else
+                sudo useradd "$name"
+            fi
+            
+            echo "created"
+        else
+            todo "$action is not implemented for missing user_present"
+        fi
+    fi
+}
+
+# __user_absent(action, name)
+function __user_absent() {
+    local action=$1
+    local name=$2
+    
+    if id "$name" >/dev/null 2>&1; then
+        if [ "$action" == "check" ]; then
+            echo "needs removal"
+        elif [ "$action" == "diff" ]; then
+            echo "User exists, will be removed: $name"
+        elif [ "$action" == "apply" ]; then
+            sudo userdel "$name"
+            echo "removed"
+        else
+            todo "$action is not implemented for user_absent"
+        fi
+    else
+        if [ "$action" == "check" ]; then
+            echo "ok"
+        elif [ "$action" == "diff" ]; then
+            echo ""
+        elif [ "$action" == "apply" ]; then
+            echo "ok"
+        else
+            todo "$action is not implemented for user_absent"
+        fi
+    fi
+}
+
+# __group_present(action, name, gid, members)
+function __group_present() {
+    local action=$1
+    local name=$2
+    local gid=$3
+    local members=$4
+    
+    if getent group "$name" >/dev/null 2>&1; then
+        local current_gid
+        current_gid=$(getent group "$name" | cut -d: -f3)
+        local current_members
+        current_members=$(getent group "$name" | cut -d: -f4)
+        
+        if [ "$action" == "check" ]; then
+            local needs_update=""
+            if [ -n "$gid" ] && [ "$current_gid" != "$gid" ]; then
+                needs_update="gid "
+            fi
+            if [ -n "$members" ] && [ "$current_members" != "$members" ]; then
+                needs_update="${needs_update}members "
+            fi
+            
+            if [ -n "$needs_update" ]; then
+                echo "needs update ($needs_update)"
+            else
+                echo "ok"
+            fi
+        elif [ "$action" == "diff" ]; then
+            local has_changes=false
+            if [ -n "$gid" ] && [ "$current_gid" != "$gid" ]; then
+                echo "GID differs:"
+                echo "  Current:  $current_gid"
+                echo "  Expected: $gid"
+                has_changes=true
+            fi
+            if [ -n "$members" ] && [ "$current_members" != "$members" ]; then
+                echo "Members differ:"
+                echo "  Current:  $current_members"
+                echo "  Expected: $members"
+                has_changes=true
+            fi
+            if [ "$has_changes" = false ]; then
+                echo ""
+            fi
+        elif [ "$action" == "apply" ]; then
+            local changes=""
+            
+            if [ -n "$gid" ] && [ "$current_gid" != "$gid" ]; then
+                sudo groupmod -g "$gid" "$name"
+                changes="${changes}gid "
+            fi
+            
+            if [ -n "$members" ] && [ "$current_members" != "$members" ]; then
+                # Clear current members and add new ones
+                sudo gpasswd -M "$members" "$name"
+                changes="${changes}members "
+            fi
+            
+            if [ -n "$changes" ]; then
+                echo "updated ($changes)"
+            else
+                echo "ok"
+            fi
+        else
+            todo "$action is not implemented for group_present"
+        fi
+    else
+        if [ "$action" == "check" ]; then
+            echo "needs creation"
+        elif [ "$action" == "diff" ]; then
+            echo "Group does not exist, will be created:"
+            echo "  Name: $name"
+            if [ -n "$gid" ]; then
+                echo "  GID: $gid"
+            fi
+            if [ -n "$members" ]; then
+                echo "  Members: $members"
+            fi
+        elif [ "$action" == "apply" ]; then
+            local groupadd_args=""
+            
+            if [ -n "$gid" ]; then
+                groupadd_args="$groupadd_args -g $gid"
+            fi
+            
+            sudo groupadd $groupadd_args "$name"
+            
+            # Add members if specified
+            if [ -n "$members" ]; then
+                sudo gpasswd -M "$members" "$name"
+            fi
+            
+            echo "created"
+        else
+            todo "$action is not implemented for missing group_present"
+        fi
+    fi
+}
+
+# __group_absent(action, name)
+function __group_absent() {
+    local action=$1
+    local name=$2
+    
+    if getent group "$name" >/dev/null 2>&1; then
+        if [ "$action" == "check" ]; then
+            echo "needs removal"
+        elif [ "$action" == "diff" ]; then
+            echo "Group exists, will be removed: $name"
+        elif [ "$action" == "apply" ]; then
+            sudo groupdel "$name"
+            echo "removed"
+        else
+            todo "$action is not implemented for group_absent"
+        fi
+    else
+        if [ "$action" == "check" ]; then
+            echo "ok"
+        elif [ "$action" == "diff" ]; then
+            echo ""
+        elif [ "$action" == "apply" ]; then
+            echo "ok"
+        else
+            todo "$action is not implemented for group_absent"
+        fi
+    fi
+}
