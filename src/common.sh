@@ -368,6 +368,25 @@ function __systemd_unit_present() {
     local auto_start=$6  # Used in conditional logic below
     local stop_if_running=$7
     
+    # Run daemon-reload first if requested, especially important for Quadlet-generated services
+    # For check action, only reload if unit file appears missing (might be newly generated)
+    if [ "$daemon_reload" = "true" ]; then
+        if [ "$action" != "check" ]; then
+            sudo systemctl daemon-reload
+        else
+            # For check action, do a quick check first
+            local unit_file_check=false
+            if systemctl list-unit-files --no-pager --no-legend "$unit_name" 2>/dev/null < /dev/null | grep -q "$unit_name"; then
+                unit_file_check=true
+            fi
+            
+            # If unit file missing but daemon-reload requested, try reload and check again
+            if [ "$unit_file_check" = false ]; then
+                sudo systemctl daemon-reload
+            fi
+        fi
+    fi
+    
     # Check if unit file exists
     local unit_file_exists=false
     if systemctl list-unit-files --no-pager --no-legend "$unit_name" 2>/dev/null  < /dev/null |  grep -q "$unit_name"; then
@@ -391,7 +410,7 @@ function __systemd_unit_present() {
             enabled)
                 if [ "$unit_file_exists" = false ]; then
                     echo "unit file missing"
-                elif [ "$current_enabled_state" \!= "enabled" ]; then
+                elif [ "$auto_start" = "true" ] && [ "$current_enabled_state" \!= "enabled" ]; then
                     echo "needs enabling"
                 elif [ "$active" = "true" ] && [ "$current_active_state" \!= "active" ]; then
                     echo "needs start"
@@ -479,20 +498,39 @@ function __systemd_unit_present() {
     elif [ "$action" == "apply" ]; then
         local changes=""
         
-        # Run daemon-reload if requested
-        if [ "$daemon_reload" = "true" ] && [ "$unit_file_exists" = true ]; then
-            sudo systemctl daemon-reload
-        fi
-        
         case "$state_type" in
             enabled)
+                # For Quadlet services, try to enable even if unit file appears missing
+                # as daemon-reload might have generated it, but only if autoStart is true
                 if [ "$unit_file_exists" = false ]; then
-                    echo "unit file missing"
-                    return
+                    if [ "$auto_start" = "true" ]; then
+                        # Try enabling anyway in case unit file was just generated
+                        if sudo systemctl enable "$unit_name" 2>/dev/null; then
+                            changes="${changes}enabled "
+                            unit_file_exists=true
+                            # Refresh states after successful enable
+                            current_enabled_state="enabled"
+                            current_active_state=$(systemctl is-active "$unit_name" 2>/dev/null || echo "unknown")
+                        else
+                            echo "unit file missing and cannot enable"
+                            return
+                        fi
+                    else
+                        # If autoStart is false, check if unit exists after daemon-reload
+                        # Re-check unit file existence after daemon-reload
+                        if systemctl list-unit-files --no-pager --no-legend "$unit_name" 2>/dev/null < /dev/null | grep -q "$unit_name"; then
+                            unit_file_exists=true
+                            current_enabled_state=$(systemctl is-enabled "$unit_name" 2>/dev/null || echo "unknown")
+                            current_active_state=$(systemctl is-active "$unit_name" 2>/dev/null || echo "unknown")
+                        else
+                            echo "unit file missing"
+                            return
+                        fi
+                    fi
                 fi
                 
-                # Enable unit if needed
-                if [ "$current_enabled_state" \!= "enabled" ]; then
+                # Enable unit if needed and autoStart is true
+                if [ "$auto_start" = "true" ] && [ "$current_enabled_state" \!= "enabled" ]; then
                     sudo systemctl enable "$unit_name"
                     changes="${changes}enabled "
                 fi

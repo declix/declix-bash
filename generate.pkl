@@ -1,7 +1,7 @@
-import "package://pkl.declix.org/pkl-declix@0.3.1#/declix.pkl"
-import "package://pkl.declix.org/pkl-declix@0.3.1#/apt/apt.pkl"
-import "package://pkl.declix.org/pkl-declix@0.3.1#/fs/fs.pkl"
-import "package://pkl.declix.org/pkl-declix@0.3.1#/systemd/systemd.pkl"
+import "package://pkl.declix.org/pkl-declix@0.4.0#/declix.pkl"
+import "package://pkl.declix.org/pkl-declix@0.4.0#/apt/apt.pkl"
+import "package://pkl.declix.org/pkl-declix@0.4.0#/fs/fs.pkl"
+import "package://pkl.declix.org/pkl-declix@0.4.0#/systemd/systemd.pkl"
 
 import "pkl:base"
 import "pkl:math"
@@ -93,7 +93,11 @@ local function gen(gens: Listing<Gen>): Listing<String> = new Listing {
     """
 }
 
-local function toGens(resources: Listing<Any>): Listing<Gen> = resources.toList().map((r)->toGen(r)).toListing()
+local function toGens(resources): Listing<Gen> = 
+    if (resources is Listing)
+        resources.toList().map((r)->toGen(r)).toListing()
+    else
+        resources.toList().map((r)->toGen(r)).toListing()
 
 local function toGen(resource: Any): Gen = 
     if (resource is apt.Package) 
@@ -103,6 +107,14 @@ local function toGen(resource: Any): Gen =
     else if (resource is fs.Dir) 
         new FsDirGen { dir = resource }
     else if (resource is systemd.Unit)
+        new SystemdUnitGen { unit = resource }
+    else if (resource.type == "apt")
+        new AptPackageGen { pkg = resource }
+    else if (resource.type == "file" || resource.type == "fs:file")
+        new FsFileGen { file = resource }
+    else if (resource.type == "dir" || resource.type == "fs:dir")
+        new FsDirGen { dir = resource }
+    else if (resource.type == "systemd")
         new SystemdUnitGen { unit = resource }
     else 
         throw("unsupported resource type: \(resource.type)")
@@ -121,7 +133,7 @@ abstract class Gen {
 // - $action = "check" | "apply"
 
 class AptPackageGen extends Gen {
-    pkg: apt.Package
+    pkg: Dynamic
     fixed id = pkg.id
 
     fixed result = new Listing { 
@@ -141,25 +153,23 @@ class AptPackageGen extends Gen {
 // toList().filter((cmd) -> cmd != "").join("\n")
 
 class FsFileGen extends Gen {
-    file: fs.File
+    file: Dynamic
     fixed id = file.id
 
     fixed result = new Listing { 
-        if (file.state is declix.Missing) 
+        if (!file.state.hasProperty("content") && !file.state.hasProperty("owner")) 
             """
             __file_missing "$action" "\(file.path)"
             """ 
-        else if (file.state is fs.FilePresent)
-            let (state = file.state as fs.FilePresent)
+        else
+            let (state = file.state)
             """
             __file_present "$action" "\(file.path)" "\(contentSha256(state.content))" "\(state.owner)" "\(state.group)" "\(state.permissions)"
             """ 
-        else
-            throw("TODO \(file.path)")
     }
 
-    aux = if (file.state is fs.FilePresent) new Listing {
-        let (content = (file.state as fs.FilePresent).content)
+    aux = if (file.state.hasProperty("content")) new Listing {
+        let (content = file.state.content)
         """
         function __content__\(content.sha256)() {
             local content="\(encodeContentBase64(content))"
@@ -170,56 +180,37 @@ class FsFileGen extends Gen {
 }
 
 class FsDirGen extends Gen {
-    dir: fs.Dir
+    dir: Dynamic
     fixed id = dir.id
 
     fixed result = new Listing { 
-        if (dir.state is declix.Missing) 
+        if (!dir.state.hasProperty("owner") && !dir.state.hasProperty("group")) 
             """
             __dir_missing "$action" "\(dir.path)"
             """ 
-        else if (dir.state is fs.DirPresent)
-            let (state = dir.state as fs.DirPresent)
+        else
+            let (state = dir.state)
             """
             __dir_present "$action" "\(dir.path)" "\(state.owner)" "\(state.group)" "\(state.permissions)"
             """ 
-        else
-            throw("TODO \(dir.path)")
     }
 }
 
 class SystemdUnitGen extends Gen {
-    unit: systemd.Unit
+    unit: Dynamic
     fixed id = unit.id
     
     fixed result = new Listing {
         let (stateType = 
-            if (unit.state is systemd.Enabled) "enabled"
-            else if (unit.state is systemd.Disabled) "disabled"
-            else if (unit.state is systemd.Masked) "masked"
-            else if (unit.state is systemd.Missing) "missing"
-            else throw("Unknown systemd state type")
+            if (unit.state.hasProperty("active") && unit.state.active != null) "enabled"
+            else if (unit.state.hasProperty("stopIfRunning") && unit.state.stopIfRunning == true) "disabled"
+            else if (unit.state.hasProperty("daemonReload") && unit.state.daemonReload == true && !unit.state.hasProperty("active")) "masked"
+            else "missing"
         )
-        let (daemonReload = 
-            if (unit.state is systemd.Enabled) (unit.state as systemd.Enabled).daemonReload
-            else if (unit.state is systemd.Disabled) (unit.state as systemd.Disabled).daemonReload
-            else if (unit.state is systemd.Masked) (unit.state as systemd.Masked).daemonReload
-            else if (unit.state is systemd.Missing) (unit.state as systemd.Missing).daemonReload
-            else false
-        )
-        let (active = 
-            if (unit.state is systemd.Enabled) (unit.state as systemd.Enabled).active
-            else false
-        )
-        let (autoStart = 
-            if (unit.state is systemd.Enabled) (unit.state as systemd.Enabled).autoStart
-            else if (unit.state is systemd.Disabled) (unit.state as systemd.Disabled).autoStart
-            else false
-        )
-        let (stopIfRunning = 
-            if (unit.state is systemd.Disabled) (unit.state as systemd.Disabled).stopIfRunning
-            else false
-        )
+        let (daemonReload = if (unit.state.hasProperty("daemonReload")) unit.state.daemonReload else false)
+        let (active = if (unit.state.hasProperty("active")) unit.state.active else false)
+        let (autoStart = if (unit.state.hasProperty("autoStart")) unit.state.autoStart else false)
+        let (stopIfRunning = if (unit.state.hasProperty("stopIfRunning")) unit.state.stopIfRunning else false)
         """
         __systemd_unit_present "$action" "\(unit.name)" "\(stateType)" "\(daemonReload)" "\(active)" "\(autoStart)" "\(stopIfRunning)"
         """
@@ -229,25 +220,27 @@ class SystemdUnitGen extends Gen {
 local function deepToDynamic(x: base.Typed): Dynamic = x.toDynamic().toMap().mapValues((k, v) -> maybeToDynamic(v)).toDynamic()
 local function maybeToDynamic(x: Any) = if (x is Typed) deepToDynamic(x) else x
 
-const local function encodeContentBase64(content: declix.Content): String = 
-    if (content is Resource || content is String) 
+const local function encodeContentBase64(content): String = 
+    if (content is String) 
         content.base64
-    else if (content is declix.UrlContent)
-        let (urlContent = content as declix.UrlContent)
-        let (downloadedContent = read(urlContent.url))
+    else if (content is Resource)
+        content.base64
+    else if (content.url != null && content.sha256 != null)
+        let (downloadedContent = read(content.url))
         let (actualHash = downloadedContent.sha256)
-        if (actualHash != urlContent.sha256)
-            throw("Hash mismatch for URL \(urlContent.url): expected \(urlContent.sha256), got \(actualHash)")
+        if (actualHash != content.sha256)
+            throw("Hash mismatch for URL \(content.url): expected \(content.sha256), got \(actualHash)")
         else
             downloadedContent.base64
     else
         throw("unsupported content: \(content)")
 
-const local function contentSha256(content: declix.Content): String =
-    if (content is Resource || content is String) 
+const local function contentSha256(content): String =
+    if (content is String) 
         content.sha256
-    else if (content is declix.UrlContent)
-        let (urlContent = content as declix.UrlContent)
-        urlContent.sha256
+    else if (content is Resource)
+        content.sha256
+    else if (content.sha256 != null)
+        content.sha256
     else
         throw("unsupported content: \(content)")
