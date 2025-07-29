@@ -180,6 +180,31 @@ test-debug name: build
         -v {{justfile_directory()}}/{{name}}:/test:rw \
         declix-bash-test bash -c "bash -x ./run-test.sh /test"
 
+# Test using the release file instead of containers
+test-release-one name:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    
+    RELEASE_FILE="../out/declix-bash.sh"
+    
+    if [ ! -f "$RELEASE_FILE" ]; then
+        echo "✗ Release file not found: $RELEASE_FILE"
+        echo "  Run 'just release' first"
+        exit 1
+    fi
+    
+    echo "Generating script for test '{{name}}' using release file..."
+    "$RELEASE_FILE" "{{justfile_directory()}}/{{name}}/resources.pkl" > "{{justfile_directory()}}/{{name}}/generated.sh"
+    
+    echo "Running test '{{name}}'..."
+    podman run --rm \
+        -v "{{justfile_directory()}}/{{name}}":/test:rw \
+        declix-bash-test bash -c "./run-test.sh /test"
+
+# Test all tests using the release file
+test-release: build
+    just _test test-release-one
+
 # Clean up test artifacts
 clean:
     podman rmi -f declix-bash-test || true

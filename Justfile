@@ -175,3 +175,7 @@ test-release: release
     @echo ""
     @echo "Testing help..."
     ./out/declix-bash.sh --help | head -10
+
+# Test release file with all container tests
+test-release-full: release
+    cd tests && just test-release

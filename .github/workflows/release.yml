@@ -37,7 +37,7 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt update
-          sudo apt install --no-install-recommends --no-upgrade -y just shellcheck
+          sudo apt install --no-install-recommends --no-upgrade -y just shellcheck podman
           
       - name: Install semantic-release dependencies
         run: |
@@ -58,6 +58,14 @@ jobs:
       - name: Run tests
         run: |
           just test
+
+      - name: Build release file
+        run: |
+          just release
+
+      - name: Test release file with container tests
+        run: |
+          just test-release-full
 
       - name: Release
         env:

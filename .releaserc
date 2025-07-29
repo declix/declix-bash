@@ -13,8 +13,7 @@
         [
             "@semantic-release/exec",
             {
-                "prepareCmd": "just release",
-                "publishCmd": "echo 'Release artifacts prepared in out/'"
+                "publishCmd": "echo 'Release artifacts already prepared in out/'"
             }
         ],
         [
