@@ -1,0 +1,46 @@
+import "package://pkl.declix.org/pkl-declix@0.5.1#/user/user.pkl"
+
+resources = new Listing {
+    // Create a test user with specific settings
+    new user.User {
+        name = "testuser1"
+        state = new user.UserPresent {
+            uid = 1500
+            gid = 1500
+            comment = "Test User One"
+            home = "/home/testuser1"
+            shell = "/bin/bash"
+        }
+    }
+    
+    // Create a system user (no shell)
+    new user.User {
+        name = "testsrv"
+        state = new user.UserPresent {
+            uid = 999
+            gid = 999
+            comment = "Test Service User"
+            home = "/var/lib/testsrv"
+            shell = "/usr/sbin/nologin"
+        }
+    }
+    
+    // Create a group
+    new user.Group {
+        name = "testgroup"
+        state = new user.GroupPresent {
+            gid = 1500
+            members = new Listing {
+                "testuser1"
+            }
+        }
+    }
+    
+    // Create another group without specific members
+    new user.Group {
+        name = "testsrv"
+        state = new user.GroupPresent {
+            gid = 999
+        }
+    }
+}

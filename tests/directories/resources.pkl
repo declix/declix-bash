@@ -1,5 +1,5 @@
-import "package://pkl.declix.org/pkl-declix@0.3.0#/fs/fs.pkl"
-import "package://pkl.declix.org/pkl-declix@0.3.0#/declix.pkl"
+import "package://pkl.declix.org/pkl-declix@0.5.1#/fs/fs.pkl"
+import "package://pkl.declix.org/pkl-declix@0.5.1#/declix.pkl"
 
 resources = new Listing {
     // Directory that should exist
