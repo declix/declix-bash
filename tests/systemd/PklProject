@@ -1,0 +1,21 @@
+amends "pkl:Project"
+
+package {
+  name = "systemd-tests"
+  baseUri = "package://declix.org/systemd-tests"
+  version = "1.0.0"
+  description = "Comprehensive systemd tests for declix-bash"
+  authors {
+    "team@declix.org"
+  }
+  packageZipUrl = "https://github.com/declix/declix-bash/archive/main.zip"
+}
+
+dependencies {
+  ["pkl-declix"] {
+    uri = "package://pkl.declix.org/pkl-declix@0.5.1"
+  }
+  ["pkl-systemd"] {
+    uri = "package://pkl.declix.org/pkl-systemd@1.3.1"
+  }
+}

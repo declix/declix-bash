@@ -12,7 +12,7 @@ resources = new Listing {
     new user.Group {
         name = "testsrv"
         state = new user.GroupPresent {
-            gid = 999
+            gid = 1999
         }
     }
     
@@ -31,8 +31,8 @@ resources = new Listing {
     new user.User {
         name = "testsrv"
         state = new user.UserPresent {
-            uid = 999
-            gid = 999
+            uid = 1999
+            gid = 1999
             comment = "Test Service User"
             home = "/var/lib/testsrv"
             shell = "/usr/sbin/nologin"

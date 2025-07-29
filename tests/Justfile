@@ -89,7 +89,7 @@ _test TARGET:
         else
             echo -e "${RED}✗${NC}"
             echo "  Error output:"
-            tail -20 /tmp/{{TARGET}}_output_$test_name | sed 's/^/    /'
+            cat /tmp/{{TARGET}}_output_$test_name | sed 's/^/    /'
             TESTS_FAILED=$((TESTS_FAILED + 1))
         fi
     done
@@ -157,9 +157,33 @@ test-one name: build
     podman run --rm -v {{justfile_directory()}}/{{name}}:/work declix-bash /work/resources.pkl > {{justfile_directory()}}/{{name}}/generated.sh
     
     echo "Running test '{{name}}'..."
-    podman run --rm \
-        -v {{justfile_directory()}}/{{name}}:/test:rw \
-        declix-bash-test bash -c "./run-test.sh /test"
+    if [ "{{name}}" = "systemd" ]; then
+        # Run systemd test with podman systemd mode
+        podman run \
+            --systemd=always \
+            --privileged \
+            --cgroupns=host \
+            -v /sys/fs/cgroup:/sys/fs/cgroup:rw \
+            -v {{justfile_directory()}}/{{name}}:/test:rw \
+            -d \
+            --name systemd-test-container \
+            declix-bash-test
+        
+        # Wait for systemd to start
+        sleep 5
+        
+        # Execute the test inside the running container
+        podman exec systemd-test-container ./run-test.sh /test
+        
+        # Stop and cleanup container
+        podman stop systemd-test-container || true
+        podman rm systemd-test-container || true
+    else
+        # Run regular test
+        podman run --rm \
+            -v {{justfile_directory()}}/{{name}}:/test:rw \
+            declix-bash-test bash -c "./run-test.sh /test"
+    fi
 
 # Run tests with interactive shell for debugging
 test-interactive: build

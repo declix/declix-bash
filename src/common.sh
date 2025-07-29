@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# Fixed != operators 2025-01-29
 
 function todo() {
     echo "NOT IMPLEMENTED (${BASH_SOURCE[1]}:${BASH_LINENO[0]}): $*" >&2
@@ -12,7 +13,7 @@ function __apt_installed() {
     local update=$3
 
     local status
-    status=$(dpkg-query -W -f='${db:Status-Abbrev}' "$package" 2>/dev/null)
+    status=$(dpkg-query -W -f='${db:Status-Abbrev}' "$package" )
 
     if [ "$status" != "ii " ]; then
         if [ "$action" == "check" ]; then
@@ -47,7 +48,7 @@ function __apt_missing() {
     local package=$2
 
     local status
-    status=$(dpkg-query -W -f='${db:Status-Abbrev}' "$package" 2>/dev/null)
+    status=$(dpkg-query -W -f='${db:Status-Abbrev}' "$package" )
 
     if [ "$status" != "" ]; then
         if [ "$action" == "check" ]; then
@@ -372,37 +373,47 @@ function __systemd_unit_present() {
     # For check action, only reload if unit file appears missing (might be newly generated)
     if [ "$daemon_reload" = "true" ]; then
         if [ "$action" != "check" ]; then
-            sudo systemctl daemon-reload
+            sudo systemctl daemon-reload || true
         else
             # For check action, do a quick check first
             local unit_file_check=false
-            if systemctl list-unit-files --no-pager --no-legend "$unit_name" 2>/dev/null < /dev/null | grep -q "$unit_name"; then
+            if systemctl list-unit-files --no-pager --no-legend "$unit_name" 2>/dev/null | grep -q "$unit_name"; then
                 unit_file_check=true
             fi
             
             # If unit file missing but daemon-reload requested, try reload and check again
             if [ "$unit_file_check" = false ]; then
-                sudo systemctl daemon-reload
+                sudo systemctl daemon-reload || true
             fi
         fi
     fi
     
     # Check if unit file exists
     local unit_file_exists=false
-    if systemctl list-unit-files --no-pager --no-legend "$unit_name" 2>/dev/null  < /dev/null |  grep -q "$unit_name"; then
+    if systemctl list-unit-files --no-pager --no-legend "$unit_name" 2>/dev/null | grep -q "$unit_name"; then
         unit_file_exists=true
     fi
     
     # Get current enabled state
     local current_enabled_state="unknown"
     if [ "$unit_file_exists" = true ]; then
-        current_enabled_state=$(systemctl is-enabled "$unit_name" 2>/dev/null || echo "unknown")
+        # Capture only stdout, ignore stderr completely
+        current_enabled_state=$(systemctl is-enabled "$unit_name" 2>/dev/null || true)
+        # If empty or multiline, set to unknown
+        if [ -z "$current_enabled_state" ] || [[ "$current_enabled_state" == *$'\n'* ]]; then
+            current_enabled_state="unknown"
+        fi
     fi
     
     # Get current active state
     local current_active_state="unknown"
     if [ "$unit_file_exists" = true ]; then
-        current_active_state=$(systemctl is-active "$unit_name" 2>/dev/null || echo "unknown")
+        # Capture only stdout, ignore stderr completely  
+        current_active_state=$(systemctl is-active "$unit_name" 2>/dev/null || true)
+        # If empty or multiline, set to unknown
+        if [ -z "$current_active_state" ] || [[ "$current_active_state" == *$'\n'* ]]; then
+            current_active_state="unknown"
+        fi
     fi
     
     if [ "$action" == "check" ]; then
@@ -410,9 +421,9 @@ function __systemd_unit_present() {
             enabled)
                 if [ "$unit_file_exists" = false ]; then
                     echo "unit file missing"
-                elif [ "$auto_start" = "true" ] && [ "$current_enabled_state" \!= "enabled" ]; then
+                elif [ "$auto_start" = "true" ] && [ "${current_enabled_state}" != "enabled" ]; then
                     echo "needs enabling"
-                elif [ "$active" = "true" ] && [ "$current_active_state" \!= "active" ]; then
+                elif [ "$active" = "true" ] && [ "${current_active_state}" != "active" ]; then
                     echo "needs start"
                 else
                     echo "ok"
@@ -421,22 +432,17 @@ function __systemd_unit_present() {
             disabled)
                 if [ "$unit_file_exists" = false ]; then
                     echo "unit file missing"
-                elif [ "$current_enabled_state" \!= "disabled" ]; then
+                elif [ "${current_enabled_state}" != "disabled" ]; then
                     echo "needs disabling"
-                elif [ "$stop_if_running" = "true" ] && [ "$current_active_state" = "active" ]; then
+                elif [ "$stop_if_running" = "true" ] && [ "${current_active_state}" = "active" ]; then
                     echo "needs stop"
                 else
                     echo "ok"
                 fi
                 ;;
             masked)
-                if [ "$unit_file_exists" = false ]; then
-                    echo "unit file missing"
-                elif [ "$current_enabled_state" \!= "masked" ]; then
-                    echo "needs masking"
-                else
-                    echo "ok"
-                fi
+                # TODO: Implement masked service support - see issue #3
+                echo "masked services not implemented"
                 ;;
             missing)
                 if [ "$unit_file_exists" = true ]; then
@@ -452,12 +458,12 @@ function __systemd_unit_present() {
                 if [ "$unit_file_exists" = false ]; then
                     echo "Unit file missing: $unit_name"
                 else
-                    if [ "$current_enabled_state" \!= "enabled" ]; then
+                    if [ "${current_enabled_state}" != "enabled" ]; then
                         echo "Unit enablement state:"
                         echo "  Current:  $current_enabled_state"
                         echo "  Expected: enabled"
                     fi
-                    if [ "$active" = "true" ] && [ "$current_active_state" \!= "active" ]; then
+                    if [ "$active" = "true" ] && [ "${current_active_state}" != "active" ]; then
                         echo "Unit active state:"
                         echo "  Current:  $current_active_state"
                         echo "  Expected: active"
@@ -468,12 +474,12 @@ function __systemd_unit_present() {
                 if [ "$unit_file_exists" = false ]; then
                     echo "Unit file missing: $unit_name"
                 else
-                    if [ "$current_enabled_state" \!= "disabled" ]; then
+                    if [ "${current_enabled_state}" != "disabled" ]; then
                         echo "Unit enablement state:"
                         echo "  Current:  $current_enabled_state"
                         echo "  Expected: disabled"
                     fi
-                    if [ "$stop_if_running" = "true" ] && [ "$current_active_state" = "active" ]; then
+                    if [ "$stop_if_running" = "true" ] && [ "${current_active_state}" = "active" ]; then
                         echo "Unit active state:"
                         echo "  Current:  $current_active_state"
                         echo "  Expected: inactive"
@@ -483,7 +489,7 @@ function __systemd_unit_present() {
             masked)
                 if [ "$unit_file_exists" = false ]; then
                     echo "Unit file missing: $unit_name"
-                elif [ "$current_enabled_state" \!= "masked" ]; then
+                elif [ "${current_enabled_state}" != "masked" ]; then
                     echo "Unit enablement state:"
                     echo "  Current:  $current_enabled_state"
                     echo "  Expected: masked"
@@ -505,12 +511,12 @@ function __systemd_unit_present() {
                 if [ "$unit_file_exists" = false ]; then
                     if [ "$auto_start" = "true" ]; then
                         # Try enabling anyway in case unit file was just generated
-                        if sudo systemctl enable "$unit_name" 2>/dev/null; then
+                        if sudo systemctl enable "$unit_name" ; then
                             changes="${changes}enabled "
                             unit_file_exists=true
                             # Refresh states after successful enable
                             current_enabled_state="enabled"
-                            current_active_state=$(systemctl is-active "$unit_name" 2>/dev/null || echo "unknown")
+                            current_active_state=$(systemctl is-active "$unit_name" 2>&1 | head -1 || echo "unknown")
                         else
                             echo "unit file missing and cannot enable"
                             return
@@ -518,10 +524,16 @@ function __systemd_unit_present() {
                     else
                         # If autoStart is false, check if unit exists after daemon-reload
                         # Re-check unit file existence after daemon-reload
-                        if systemctl list-unit-files --no-pager --no-legend "$unit_name" 2>/dev/null < /dev/null | grep -q "$unit_name"; then
+                        if systemctl list-unit-files --no-pager --no-legend "$unit_name" 2>/dev/null | grep -q "$unit_name"; then
                             unit_file_exists=true
-                            current_enabled_state=$(systemctl is-enabled "$unit_name" 2>/dev/null || echo "unknown")
-                            current_active_state=$(systemctl is-active "$unit_name" 2>/dev/null || echo "unknown")
+                            current_enabled_state=$(systemctl is-enabled "$unit_name" 2>/dev/null || true)
+                            if [ -z "$current_enabled_state" ] || [[ "$current_enabled_state" == *$'\n'* ]]; then
+                                current_enabled_state="unknown"
+                            fi
+                            current_active_state=$(systemctl is-active "$unit_name" 2>/dev/null || true)
+                            if [ -z "$current_active_state" ] || [[ "$current_active_state" == *$'\n'* ]]; then
+                                current_active_state="unknown"
+                            fi
                         else
                             echo "unit file missing"
                             return
@@ -530,13 +542,13 @@ function __systemd_unit_present() {
                 fi
                 
                 # Enable unit if needed and autoStart is true
-                if [ "$auto_start" = "true" ] && [ "$current_enabled_state" \!= "enabled" ]; then
+                if [ "$auto_start" = "true" ] && [ "${current_enabled_state}" != "enabled" ]; then
                     sudo systemctl enable "$unit_name"
                     changes="${changes}enabled "
                 fi
                 
                 # Start unit if needed
-                if [ "$active" = "true" ] && [ "$current_active_state" \!= "active" ]; then
+                if [ "$active" = "true" ] && [ "${current_active_state}" != "active" ]; then
                     sudo systemctl start "$unit_name"
                     changes="${changes}started "
                 fi
@@ -554,13 +566,13 @@ function __systemd_unit_present() {
                 fi
                 
                 # Stop unit if needed
-                if [ "$stop_if_running" = "true" ] && [ "$current_active_state" = "active" ]; then
+                if [ "$stop_if_running" = "true" ] && [ "${current_active_state}" = "active" ]; then
                     sudo systemctl stop "$unit_name"
                     changes="${changes}stopped "
                 fi
                 
                 # Disable unit if needed
-                if [ "$current_enabled_state" \!= "disabled" ]; then
+                if [ "${current_enabled_state}" != "disabled" ]; then
                     sudo systemctl disable "$unit_name"
                     changes="${changes}disabled "
                 fi
@@ -572,16 +584,9 @@ function __systemd_unit_present() {
                 fi
                 ;;
             masked)
-                if [ "$unit_file_exists" = false ]; then
-                    echo "unit file missing"
-                    return
-                fi
-                
-                # Mask unit if needed
-                if [ "$current_enabled_state" \!= "masked" ]; then
-                    sudo systemctl mask "$unit_name"
-                    changes="${changes}masked "
-                fi
+                # TODO: Implement masked service support - see issue #3
+                echo "masked services not implemented"
+                return
                 
                 if [ -n "$changes" ]; then
                     echo "updated ($changes)"

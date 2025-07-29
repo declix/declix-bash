@@ -1,20 +1,27 @@
 FROM debian:12-slim
 
-# Install minimal test dependencies
+ENV container=podman
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Install systemd and test dependencies
 RUN apt-get update && apt-get install -y \
     sudo \
     bash \
     coreutils \
     grep \
+    systemd \
+    systemd-sysv \
     && rm -rf /var/lib/apt/lists/*
+
+# Basic systemd configuration for containers
+RUN systemctl set-default multi-user.target
 
 # Create working directory
 WORKDIR /app/tests
 
-# Copy only test runner script
+# Copy test runner script
 COPY run-test.sh ./
 RUN chmod +x run-test.sh
 
-# Run as root (no user switching needed)
-# Default to bash
-CMD ["bash"]
+# Let podman handle systemd setup  
+CMD ["/sbin/init"]
