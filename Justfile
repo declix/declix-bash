@@ -18,7 +18,7 @@ generate-local file:
 # Run shellcheck on shell scripts
 shellcheck:
     shellcheck generate.sh src/common.sh
-    find . -name "*.sh" -not -path "./tests/*/generated.sh" | xargs shellcheck
+    find . -name "*.sh" -not -path "./tests/*/generated.sh" -not -path "./local/*" | xargs shellcheck
 
 # Run interactive container
 run: build
