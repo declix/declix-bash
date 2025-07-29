@@ -33,3 +33,6 @@ Thumbs.db
 
 # Build outputs
 out/
+
+# Node.js dependencies
+node_modules/
