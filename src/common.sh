@@ -586,13 +586,6 @@ function __systemd_unit_present() {
             masked)
                 # TODO: Implement masked service support - see issue #3
                 echo "masked services not implemented"
-                return
-                
-                if [ -n "$changes" ]; then
-                    echo "updated ($changes)"
-                else
-                    echo "ok"
-                fi
                 ;;
             missing)
                 # This state type would be used for cleanup
