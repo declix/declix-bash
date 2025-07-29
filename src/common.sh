@@ -683,31 +683,26 @@ function __user_present() {
             fi
         elif [ "$action" == "apply" ]; then
             local changes=""
-            local usermod_args=""
             
             if [ -n "$uid" ] && [ "$current_uid" != "$uid" ]; then
-                usermod_args="$usermod_args -u $uid"
+                sudo usermod -u "$uid" "$name"
                 changes="${changes}uid "
             fi
             if [ -n "$gid" ] && [ "$current_gid" != "$gid" ]; then
-                usermod_args="$usermod_args -g $gid"
+                sudo usermod -g "$gid" "$name"
                 changes="${changes}gid "
             fi
             if [ -n "$home" ] && [ "$current_home" != "$home" ]; then
-                usermod_args="$usermod_args -d $home"
+                sudo usermod -d "$home" "$name"
                 changes="${changes}home "
             fi
             if [ -n "$shell" ] && [ "$current_shell" != "$shell" ]; then
-                usermod_args="$usermod_args -s $shell"
+                sudo usermod -s "$shell" "$name"
                 changes="${changes}shell "
             fi
             if [ -n "$comment" ] && [ "$current_comment" != "$comment" ]; then
-                usermod_args="$usermod_args -c '$comment'"
+                sudo usermod -c "$comment" "$name"
                 changes="${changes}comment "
-            fi
-            
-            if [ -n "$usermod_args" ]; then
-                sudo usermod $usermod_args "$name"
             fi
             
             
@@ -739,34 +734,34 @@ function __user_present() {
                 echo "  Comment: $comment"
             fi
         elif [ "$action" == "apply" ]; then
-            local useradd_args=""
+            local useradd_cmd=("sudo" "useradd")
             
             if [ -n "$uid" ]; then
-                useradd_args="$useradd_args -u $uid"
+                useradd_cmd+=("-u" "$uid")
             fi
             if [ -n "$gid" ]; then
-                useradd_args="$useradd_args -g $gid"
+                useradd_cmd+=("-g" "$gid")
             fi
             if [ -n "$home" ]; then
-                useradd_args="$useradd_args -d $home"
+                useradd_cmd+=("-d" "$home")
             fi
             if [ -n "$shell" ]; then
-                useradd_args="$useradd_args -s $shell"
+                useradd_cmd+=("-s" "$shell")
             else
-                useradd_args="$useradd_args -s /usr/sbin/nologin"
+                useradd_cmd+=("-s" "/usr/sbin/nologin")
             fi
             if [ -n "$comment" ]; then
-                useradd_args="$useradd_args -c '$comment'"
+                useradd_cmd+=("-c" "$comment")
             fi
             
             # Create home directory by default
-            useradd_args="$useradd_args -m"
+            useradd_cmd+=("-m")
             
-            if [ -n "$useradd_args" ]; then
-                eval "sudo useradd $useradd_args \"$name\""
-            else
-                sudo useradd "$name"
-            fi
+            # Add the username
+            useradd_cmd+=("$name")
+            
+            # Execute the command
+            "${useradd_cmd[@]}"
             
             echo "created"
         else
@@ -883,13 +878,11 @@ function __group_present() {
                 echo "  Members: $members"
             fi
         elif [ "$action" == "apply" ]; then
-            local groupadd_args=""
-            
             if [ -n "$gid" ]; then
-                groupadd_args="$groupadd_args -g $gid"
+                sudo groupadd -g "$gid" "$name"
+            else
+                sudo groupadd "$name"
             fi
-            
-            sudo groupadd $groupadd_args "$name"
             
             # Add members if specified
             if [ -n "$members" ]; then

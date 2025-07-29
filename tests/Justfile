@@ -205,6 +205,11 @@ test-release-one name:
 test-release: build
     just _test test-release-one
 
+# Run shellcheck on shell scripts
+shellcheck:
+    shellcheck ../generate.sh ../src/common.sh
+    find . -name "*.sh" | xargs shellcheck
+
 # Clean up test artifacts
 clean:
     podman rmi -f declix-bash-test || true
