@@ -30,3 +30,6 @@ Thumbs.db
 # Test outputs
 /tmp/test_*
 /tmp/gen_*
+
+# Build outputs
+out/

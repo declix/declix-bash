@@ -1,0 +1,35 @@
+{
+    "plugins": [
+        "@semantic-release/commit-analyzer",
+        [
+            "@semantic-release/release-notes-generator",
+            {
+                "preset": "conventionalcommits",
+                "writerOpts": {
+                    "headerPartial": "## declix-bash {{#if isPatch~}} <small>\n  {{~/if~}} {{version}}\n  {{~#if title}} \"{{title}}\"\n  {{~/if~}}\n  {{~#if date}} ({{date}})\n  {{~/if~}}\n  {{~#if isPatch~}} </small>\n  {{~/if}}\n\nThis is the {{version}} release of declix-bash - Bash script generator for declarative Linux system configuration.\n\n## Installation\n\n### Download the single-file release\n\n```bash\n# Download the script\nwget https://github.com/declix/declix-bash/releases/download/{{version}}/declix-bash.sh\nchmod +x declix-bash.sh\n\n# Or with curl\ncurl -L -o declix-bash.sh https://github.com/declix/declix-bash/releases/download/{{version}}/declix-bash.sh\nchmod +x declix-bash.sh\n```\n\n### Usage\n\n```bash\n# Generate and check system state\n./declix-bash.sh resources.pkl | bash -s check\n\n# Show differences\n./declix-bash.sh resources.pkl | bash -s diff\n\n# Apply configuration\n./declix-bash.sh resources.pkl | bash -s apply\n```\n\n### Requirements\n\n- pkl (Apple's configuration language) must be installed\n- sudo access for system modifications\n\n"
+                }
+            }
+        ],
+        [
+            "@semantic-release/exec",
+            {
+                "prepareCmd": "just release",
+                "publishCmd": "echo 'Release artifacts prepared in out/'"
+            }
+        ],
+        [
+            "@semantic-release/github",
+            {
+                "assets": [
+                    {
+                        "path": "out/declix-bash.sh",
+                        "name": "declix-bash.sh",
+                        "label": "declix-bash {{version}} - Single-file executable"
+                    }
+                ]
+            }
+        ]
+    ],
+    "tagFormat": "${version}",
+    "preset": "conventionalcommits"
+}
