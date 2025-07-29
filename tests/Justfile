@@ -205,6 +205,74 @@ test-release-one name:
 test-release: build
     just _test test-release-one
 
+# Test generation only using the release file (no containers)
+test-release-generate:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    
+    RELEASE_FILE="../out/declix-bash.sh"
+    
+    if [ ! -f "$RELEASE_FILE" ]; then
+        echo "✗ Release file not found: $RELEASE_FILE"
+        echo "  Run 'just release' first"
+        exit 1
+    fi
+    
+    # Colors for output
+    GREEN='\033[0;32m'
+    RED='\033[0;31m'
+    NC='\033[0m' # No Color
+    
+    TESTS_PASSED=0
+    TESTS_FAILED=0
+    
+    echo "Finding tests..."
+    
+    # Find all test directories that contain resources.pkl
+    TEST_DIRS=$(find {{justfile_directory()}} -name "resources.pkl" -exec dirname {} \; | sort)
+    
+    if [ -z "$TEST_DIRS" ]; then
+        echo "No tests found"
+        exit 1
+    fi
+    
+    echo "Found tests: $(echo $TEST_DIRS | wc -w)"
+    echo
+    
+    # Test generation for each test
+    for test_dir in $TEST_DIRS; do
+        test_name=$(basename "$test_dir")
+        echo -n "Testing generation for '$test_name'... "
+        
+        if "$RELEASE_FILE" "$test_dir/resources.pkl" > "$test_dir/generated.sh" 2>/dev/null; then
+            # Check syntax of generated script
+            if bash -n "$test_dir/generated.sh"; then
+                echo -e "${GREEN}✓${NC}"
+                TESTS_PASSED=$((TESTS_PASSED + 1))
+            else
+                echo -e "${RED}✗ (syntax error)${NC}"
+                TESTS_FAILED=$((TESTS_FAILED + 1))
+            fi
+        else
+            echo -e "${RED}✗ (generation failed)${NC}"
+            TESTS_FAILED=$((TESTS_FAILED + 1))
+        fi
+    done
+    
+    echo
+    echo "=== Generation Test Summary ==="
+    echo "Passed: $TESTS_PASSED"
+    echo "Failed: $TESTS_FAILED"
+    echo
+    
+    if [ $TESTS_FAILED -eq 0 ]; then
+        echo -e "${GREEN}All generation tests passed!${NC}"
+        exit 0
+    else
+        echo -e "${RED}Some generation tests failed!${NC}"
+        exit 1
+    fi
+
 # Clean up test artifacts
 clean:
     podman rmi -f declix-bash-test || true

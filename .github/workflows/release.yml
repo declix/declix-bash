@@ -3,6 +3,9 @@ on:
   push:
     branches:
       - main
+  pull_request:
+    branches:
+      - main
 
 permissions:
   contents: read # for checkout
@@ -40,6 +43,7 @@ jobs:
           sudo apt install --no-install-recommends --no-upgrade -y just shellcheck podman
           
       - name: Install semantic-release dependencies
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         run: |
           npm install \
             semantic-release \
@@ -55,19 +59,24 @@ jobs:
         run: |
           just shellcheck
 
-      - name: Run tests
+      - name: Run generation tests
         run: |
-          just test
+          cd tests && just test-local-generate
 
       - name: Build release file
         run: |
           just release
 
-      - name: Test release file with container tests
+      - name: Test release file generation
         run: |
-          just test-release-full
+          cd tests && just test-release-generate
+
+      - name: Run container tests
+        run: |
+          cd tests && just test
 
       - name: Release
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: npx semantic-release

@@ -1,7 +1,22 @@
 import "package://pkl.declix.org/pkl-declix@0.5.1#/user/user.pkl"
 
 resources = new Listing {
-    // Create a test user with specific settings
+    // Create groups first (needed as primary groups for users)
+    new user.Group {
+        name = "testgroup" 
+        state = new user.GroupPresent {
+            gid = 1500
+        }
+    }
+    
+    new user.Group {
+        name = "testsrv"
+        state = new user.GroupPresent {
+            gid = 999
+        }
+    }
+    
+    // Create users after groups exist
     new user.User {
         name = "testuser1"
         state = new user.UserPresent {
@@ -13,7 +28,6 @@ resources = new Listing {
         }
     }
     
-    // Create a system user (no shell)
     new user.User {
         name = "testsrv"
         state = new user.UserPresent {
@@ -25,7 +39,7 @@ resources = new Listing {
         }
     }
     
-    // Create a group
+    // Update group membership after users exist
     new user.Group {
         name = "testgroup"
         state = new user.GroupPresent {
@@ -33,14 +47,6 @@ resources = new Listing {
             members = new Listing {
                 "testuser1"
             }
-        }
-    }
-    
-    // Create another group without specific members
-    new user.Group {
-        name = "testsrv"
-        state = new user.GroupPresent {
-            gid = 999
         }
     }
 }
