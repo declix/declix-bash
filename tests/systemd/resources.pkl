@@ -1,5 +1,5 @@
-import "package://pkl.declix.org/pkl-declix@0.5.1#/fs/fs.pkl"
-import "package://pkl.declix.org/pkl-declix@0.5.1#/systemd/systemd.pkl"
+import "package://pkl.declix.org/pkl-declix@0.6.0#/fs/fs.pkl"
+import "package://pkl.declix.org/pkl-declix@0.6.0#/systemd/systemd.pkl"
 import "@pkl-systemd/Service.pkl" as systemdService
 import "@pkl-systemd/Timer.pkl" as systemdTimer
 import "@pkl-systemd/Socket.pkl" as systemdSocket
@@ -313,7 +313,23 @@ resources = new Listing {
         }
     }
     
-    // Note: Masked service test removed - will be handled in separate PR
+    // Test service that should be masked (no unit file needed)
+    new systemd.Unit {
+        name = "test-masked.service"
+        state = new systemd.Masked {
+            daemonReload = true
+        }
+    }
+    
+    // Test masking an existing service (simulate by creating in setup)
+    // Note: We can't have both file resource and masked systemd resource for same unit
+    // The setup script will create the file before masking
+    new systemd.Unit {
+        name = "test-mask-existing.service"
+        state = new systemd.Masked {
+            daemonReload = true
+        }
+    }
     
     // Test removing a service
     new systemd.Unit {

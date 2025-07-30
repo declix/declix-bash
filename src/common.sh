@@ -441,8 +441,13 @@ function __systemd_unit_present() {
                 fi
                 ;;
             masked)
-                # TODO: Implement masked service support - see issue #3
-                echo "masked services not implemented"
+                # For masked state, we need to check if the symlink exists
+                local unit_path="/etc/systemd/system/$unit_name"
+                if [ -L "$unit_path" ] && [ "$(readlink "$unit_path")" = "/dev/null" ]; then
+                    echo "ok"
+                else
+                    echo "needs masking"
+                fi
                 ;;
             missing)
                 if [ "$unit_file_exists" = true ]; then
@@ -584,8 +589,25 @@ function __systemd_unit_present() {
                 fi
                 ;;
             masked)
-                # TODO: Implement masked service support - see issue #3
-                echo "masked services not implemented"
+                # Masking can be done even without a unit file
+                # systemctl mask just creates a symlink to /dev/null
+                local unit_path="/etc/systemd/system/$unit_name"
+                
+                # Check if already masked
+                if [ -L "$unit_path" ] && [ "$(readlink "$unit_path")" = "/dev/null" ]; then
+                    echo "ok"
+                    return
+                fi
+                
+                # If a real unit file exists (not a symlink), we need to move it first
+                if [ -f "$unit_path" ] && [ ! -L "$unit_path" ]; then
+                    # Move the real file to a backup location
+                    sudo mv "$unit_path" "${unit_path}.pre-mask"
+                fi
+                
+                # Now mask the unit (this creates a symlink to /dev/null)
+                sudo systemctl mask "$unit_name"
+                echo "updated (masked)"
                 ;;
             missing)
                 # This state type would be used for cleanup

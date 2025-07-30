@@ -1,17 +1,19 @@
-import "package://pkl.declix.org/pkl-declix@0.5.1#/declix.pkl"
-import "package://pkl.declix.org/pkl-declix@0.5.1#/apt/apt.pkl"
-import "package://pkl.declix.org/pkl-declix@0.5.1#/fs/fs.pkl"
-import "package://pkl.declix.org/pkl-declix@0.5.1#/systemd/systemd.pkl"
-import "package://pkl.declix.org/pkl-declix@0.5.1#/user/user.pkl"
+import "package://pkl.declix.org/pkl-declix@0.6.0#/declix.pkl"
+import "package://pkl.declix.org/pkl-declix@0.6.0#/apt/apt.pkl"
+import "package://pkl.declix.org/pkl-declix@0.6.0#/fs/fs.pkl"
+import "package://pkl.declix.org/pkl-declix@0.6.0#/systemd/systemd.pkl"
+import "package://pkl.declix.org/pkl-declix@0.6.0#/user/user.pkl"
 
 import "pkl:base"
 import "pkl:math"
 
-function generate(resources): String = gen(toGens(resources)).join("\n")
+function generate(resources): String = genScript(toGens(resources)).join("\n")
+
+function gen(resources): String = generate(resources)
 
 local commonSh = read("src/common.sh");
 
-local function gen(gens: Listing<Gen>): Listing<String> = new Listing {
+local function genScript(gens: Listing<Gen>): Listing<String> = new Listing {
     // script header
     """
     #!/usr/bin/env bash
@@ -94,25 +96,25 @@ local function gen(gens: Listing<Gen>): Listing<String> = new Listing {
     """
 }
 
-local function toGens(resources): Listing<Gen> = 
+function toGens(resources): Listing<Gen> = 
     if (resources is Listing)
         resources.toList().map((r)->toGen(r)).toListing()
     else
         resources.toList().map((r)->toGen(r)).toListing()
 
-local function toGen(resource: Any): Gen = 
+function toGen(resource: Any): Gen = 
     if (resource is apt.Package) 
-        new AptPackageGen { pkg = resource }
+        new AptPackageGen { pkg = resource.toDynamic() }
     else if (resource is fs.File) 
-        new FsFileGen { file = resource }
+        new FsFileGen { file = resource.toDynamic() }
     else if (resource is fs.Dir) 
-        new FsDirGen { dir = resource }
+        new FsDirGen { dir = resource.toDynamic() }
     else if (resource is systemd.Unit)
-        new SystemdUnitGen { unit = resource }
+        new SystemdUnitGen { unit = resource.toDynamic() }
     else if (resource is user.User)
-        new UserGen { user = resource }
+        new UserGen { user = resource.toDynamic() }
     else if (resource is user.Group)
-        new GroupGen { group = resource }
+        new GroupGen { group = resource.toDynamic() }
     else if (resource.type == "apt")
         new AptPackageGen { pkg = resource }
     else if (resource.type == "file" || resource.type == "fs:file")
@@ -211,15 +213,11 @@ class SystemdUnitGen extends Gen {
     
     fixed result = new Listing {
         let (stateType = 
-            // Since everything is Dynamic, identify by unique property combinations
-            // Enabled: has active and autoStart properties  
-            if (unit.state.hasProperty("active") && unit.state.hasProperty("autoStart")) "enabled"
-            // Disabled: has stopIfRunning property
+            // Check for type property first if available
+            if (unit.state.hasProperty("type")) unit.state.type
+            // Fallback to property-based detection for backwards compatibility
+            else if (unit.state.hasProperty("active") && unit.state.hasProperty("autoStart")) "enabled"
             else if (unit.state.hasProperty("stopIfRunning")) "disabled"
-            // Masked and Missing both only have daemonReload, need another way to distinguish
-            // Check the actual property set or use the original type info stored in the resource
-            else if (unit.state.hasProperty("daemonReload") && unit.id.contains("masked")) "masked"
-            else if (unit.state.hasProperty("daemonReload") && unit.id.contains("removed")) "missing"
             else if (unit.state.hasProperty("daemonReload")) "missing" // default for daemonReload-only
             else "missing"
         )

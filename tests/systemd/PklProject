@@ -13,7 +13,7 @@ package {
 
 dependencies {
   ["pkl-declix"] {
-    uri = "package://pkl.declix.org/pkl-declix@0.5.1"
+    uri = "package://pkl.declix.org/pkl-declix@0.6.0"
   }
   ["pkl-systemd"] {
     uri = "package://pkl.declix.org/pkl-systemd@1.3.1"
