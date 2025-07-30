@@ -50,7 +50,8 @@ systemctl disable test-socket.socket 2>/dev/null || true
 systemctl disable test-complex.service 2>/dev/null || true
 systemctl disable tmp-testmount.mount 2>/dev/null || true
 
-# Note: masked service cleanup removed - see issue #3
+systemctl unmask test-masked.service 2>/dev/null || true
+systemctl unmask test-mask-existing.service 2>/dev/null || true
 
 # Remove existing unit files
 rm -f /etc/systemd/system/test-*.service
@@ -65,5 +66,18 @@ rm -rf /tmp/testmount
 
 # Reload systemd to clean up
 systemctl daemon-reload
+
+# Create a test service file that will be masked (simulates existing service)
+cat > /etc/systemd/system/test-mask-existing.service << 'EOF'
+[Unit]
+Description=Test Service to be Masked
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/sleep 3600
+
+[Install]
+WantedBy=multi-user.target
+EOF
 
 echo "✓ Systemd test setup completed"

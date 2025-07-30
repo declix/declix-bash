@@ -28,6 +28,8 @@ expected_resources=(
     "systemd:test-socket.socket"
     "systemd:tmp-testmount.mount"
     "systemd:test-complex.service"
+    "systemd:test-masked.service"
+    "systemd:test-mask-existing.service"
     "systemd:test-removed.service"
 )
 
@@ -65,7 +67,6 @@ unit_files=(
     "/etc/systemd/system/test-socket.service"
     "/etc/systemd/system/tmp-testmount.mount"
     "/etc/systemd/system/test-complex.service"
-    # Note: test-masked.service will be a symlink to /dev/null after masking
 )
 
 for unit_file in "${unit_files[@]}"; do
@@ -82,7 +83,22 @@ done
 
 echo "✓ All unit files exist"
 
-# Note: Masked service test removed - see issue #3
+# Check masked services have correct symlinks
+if [ -L "/etc/systemd/system/test-masked.service" ] && [ "$(readlink "/etc/systemd/system/test-masked.service")" = "/dev/null" ]; then
+    echo "✓ test-masked.service has correct /dev/null symlink"
+else
+    echo "ERROR: test-masked.service should be a symlink to /dev/null"
+    ls -la /etc/systemd/system/test-masked.service 2>/dev/null || echo "File does not exist"
+    exit 1
+fi
+
+if [ -L "/etc/systemd/system/test-mask-existing.service" ] && [ "$(readlink "/etc/systemd/system/test-mask-existing.service")" = "/dev/null" ]; then
+    echo "✓ test-mask-existing.service has correct /dev/null symlink"
+else
+    echo "ERROR: test-mask-existing.service should be a symlink to /dev/null"
+    ls -la /etc/systemd/system/test-mask-existing.service 2>/dev/null || echo "File does not exist"
+    exit 1
+fi
 
 # Verify service enable/disable states
 echo "Verifying service states..."
@@ -115,7 +131,23 @@ fi
 
 echo "✓ test-disabled.service is correctly disabled"
 
-# Note: Masked service verification removed - see issue #3
+# Service that should be masked (no unit file)
+mask_status=$(systemctl is-enabled test-masked.service 2>&1 || true)
+if [ "$mask_status" = "masked" ]; then
+    echo "✓ test-masked.service is correctly masked"
+else
+    echo "ERROR: test-masked.service should be masked but isn't - got '$mask_status'"
+    exit 1
+fi
+
+# Service that should be masked (existing unit file)
+mask_existing_status=$(systemctl is-enabled test-mask-existing.service 2>&1 || true)
+if [ "$mask_existing_status" = "masked" ]; then
+    echo "✓ test-mask-existing.service is correctly masked"
+else
+    echo "ERROR: test-mask-existing.service should be masked but isn't - got '$mask_existing_status'"
+    exit 1
+fi
 
 # Verify active states for long-running services
 active_services=(
