@@ -1,0 +1,325 @@
+import "package://pkl.declix.org/pkl-declix@0.5.1#/fs/fs.pkl"
+import "package://pkl.declix.org/pkl-declix@0.5.1#/systemd/systemd.pkl"
+import "@pkl-systemd/Service.pkl" as systemdService
+import "@pkl-systemd/Timer.pkl" as systemdTimer
+import "@pkl-systemd/Socket.pkl" as systemdSocket
+import "@pkl-systemd/Mount.pkl" as systemdMount
+
+resources = new Listing {
+    // Test simple service unit file creation
+    new fs.File {
+        path = "/etc/systemd/system/test-app.service"
+        state = new fs.FilePresent {
+            content = new systemdService {
+                unit = new {
+                    description = "Test Application Service"
+                    after = "network.target"
+                    wants = "network.target"
+                }
+                
+                service = new {
+                    type = "simple"
+                    execStart = "/usr/bin/sleep 3600"
+                    restart = "always"
+                    restartSec = 5.s
+                }
+                
+                install = new {
+                    wantedBy = "multi-user.target"
+                }
+            }.output.text
+            owner = "root"
+            group = "root"
+            permissions = "644"
+        }
+    }
+    
+    // Test oneshot service with timer
+    new fs.File {
+        path = "/etc/systemd/system/test-backup.service"
+        state = new fs.FilePresent {
+            content = new systemdService {
+                unit = new {
+                    description = "Test Backup Service"
+                    after = "multi-user.target"
+                }
+                
+                service = new {
+                    type = "oneshot"
+                    execStart = "/bin/touch /tmp/backup-ran"
+                }
+            }.output.text
+            owner = "root"
+            group = "root"
+            permissions = "644"
+        }
+    }
+    
+    // Test timer for backup service
+    new fs.File {
+        path = "/etc/systemd/system/test-backup.timer"
+        state = new fs.FilePresent {
+            content = new systemdTimer {
+                unit = new {
+                    description = "Test Backup Timer"
+                    requires = "test-backup.service"
+                }
+                
+                timer = new {
+                    onCalendar = "*:0/5"  // Every 5 minutes for testing
+                    persistent = true
+                    unit = "test-backup.service"
+                    accuracySec = 1.min
+                }
+                
+                install = new {
+                    wantedBy = "timers.target"
+                }
+            }.output.text
+            owner = "root"
+            group = "root"
+            permissions = "644"
+        }
+    }
+    
+    // Test enabling and starting the simple service
+    new systemd.Unit {
+        name = "test-app.service"
+        state = new systemd.Enabled {
+            active = true
+            autoStart = true
+            daemonReload = true
+        }
+    }
+    
+    // Test enabling the timer (but not starting - oneshot services are triggered by timer)
+    new systemd.Unit {
+        name = "test-backup.timer"
+        state = new systemd.Enabled {
+            active = true
+            autoStart = true
+            daemonReload = true
+        }
+    }
+    
+    // Test a service that should be disabled
+    new fs.File {
+        path = "/etc/systemd/system/test-disabled.service"
+        state = new fs.FilePresent {
+            content = new systemdService {
+                unit = new {
+                    description = "Test Disabled Service"
+                    after = "network.target"
+                }
+                
+                service = new {
+                    type = "simple"
+                    execStart = "/usr/bin/sleep 3600"
+                    restart = "no"
+                }
+                
+                install = new {
+                    wantedBy = "multi-user.target"
+                }
+            }.output.text
+            owner = "root"
+            group = "root"
+            permissions = "644"
+        }
+    }
+    
+    // Test disabling a service
+    new systemd.Unit {
+        name = "test-disabled.service"
+        state = new systemd.Disabled {
+            stopIfRunning = true
+            daemonReload = true
+        }
+    }
+    
+    // Test service dependency chain
+    new fs.File {
+        path = "/etc/systemd/system/test-dependency.service"
+        state = new fs.FilePresent {
+            content = new systemdService {
+                unit = new {
+                    description = "Test Dependency Service"
+                    after = "test-app.service"
+                    requires = "test-app.service"
+                }
+                
+                service = new {
+                    type = "simple"
+                    execStart = "/usr/bin/sleep 3600"
+                    restart = "always"
+                    restartSec = 3.s
+                }
+                
+                install = new {
+                    wantedBy = "multi-user.target"
+                }
+            }.output.text
+            owner = "root"
+            group = "root"
+            permissions = "644"
+        }
+    }
+    
+    // Test service with dependency
+    new systemd.Unit {
+        name = "test-dependency.service"
+        state = new systemd.Enabled {
+            active = true
+            autoStart = true
+            daemonReload = true
+        }
+    }
+    
+    // Test socket activation service
+    new fs.File {
+        path = "/etc/systemd/system/test-socket.socket"
+        state = new fs.FilePresent {
+            content = new systemdSocket {
+                unit = new {
+                    description = "Test Socket Activation"
+                    before = "test-socket.service"
+                }
+                
+                socket = new {
+                    listenStream = "127.0.0.1:8080"
+                    accept = true
+                    noDelay = true
+                }
+                
+                install = new {
+                    wantedBy = "sockets.target"
+                }
+            }.output.text
+            owner = "root"
+            group = "root"
+            permissions = "644"
+        }
+    }
+    
+    // Socket-activated service
+    new fs.File {
+        path = "/etc/systemd/system/test-socket.service"
+        state = new fs.FilePresent {
+            content = new systemdService {
+                unit = new {
+                    description = "Test Socket Service"
+                    after = "network.target"
+                }
+                
+                service = new {
+                    type = "simple"
+                    execStart = "/bin/cat"
+                }
+            }.output.text
+            owner = "root"
+            group = "root"
+            permissions = "644"
+        }
+    }
+    
+    // Enable socket (not the service directly)
+    new systemd.Unit {
+        name = "test-socket.socket"
+        state = new systemd.Enabled {
+            active = true
+            autoStart = true
+            daemonReload = true
+        }
+    }
+    
+    // Test mount unit
+    new fs.File {
+        path = "/etc/systemd/system/tmp-testmount.mount"
+        state = new fs.FilePresent {
+            content = new systemdMount {
+                unit = new {
+                    description = "Test Mount Point"
+                    before = "local-fs.target"
+                }
+                
+                mount = new {
+                    what = "tmpfs"
+                    where = "/tmp/testmount"
+                    type = "tmpfs"
+                    options = "size=10M,mode=755"
+                }
+                
+                install = new {
+                    wantedBy = "local-fs.target"
+                }
+            }.output.text
+            owner = "root"
+            group = "root"
+            permissions = "644"
+        }
+    }
+    
+    // Enable mount
+    new systemd.Unit {
+        name = "tmp-testmount.mount"
+        state = new systemd.Enabled {
+            active = true
+            autoStart = true
+            daemonReload = true
+        }
+    }
+    
+    // Test complex service with environment and restart policy
+    new fs.File {
+        path = "/etc/systemd/system/test-complex.service"
+        state = new fs.FilePresent {
+            content = new systemdService {
+                unit = new {
+                    description = "Test Complex Service with Environment"
+                    after = "network-online.target"
+                    wants = "network-online.target"
+                    requires = "test-app.service"
+                }
+                
+                service = new {
+                    type = "simple"
+                    execStart = "/usr/bin/sleep 30"
+                    restart = "on-failure"
+                    restartSec = 10.s
+                    environment {
+                        ["TEST_VAR"] = "test_value"
+                        ["LOG_LEVEL"] = "debug"
+                    }
+                }
+                
+                install = new {
+                    wantedBy = "multi-user.target"
+                    requiredBy = "test-dependency.service"
+                }
+            }.output.text
+            owner = "root"
+            group = "root"
+            permissions = "644"
+        }
+    }
+    
+    // Enable complex service
+    new systemd.Unit {
+        name = "test-complex.service"
+        state = new systemd.Enabled {
+            active = true
+            autoStart = true
+            daemonReload = true
+        }
+    }
+    
+    // Note: Masked service test removed - will be handled in separate PR
+    
+    // Test removing a service
+    new systemd.Unit {
+        name = "test-removed.service"
+        state = new systemd.Missing {
+            daemonReload = true
+        }
+    }
+}

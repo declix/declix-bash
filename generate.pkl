@@ -211,9 +211,16 @@ class SystemdUnitGen extends Gen {
     
     fixed result = new Listing {
         let (stateType = 
-            if (unit.state.hasProperty("active") && unit.state.active != null) "enabled"
-            else if (unit.state.hasProperty("stopIfRunning") && unit.state.stopIfRunning == true) "disabled"
-            else if (unit.state.hasProperty("daemonReload") && unit.state.daemonReload == true && !unit.state.hasProperty("active")) "masked"
+            // Since everything is Dynamic, identify by unique property combinations
+            // Enabled: has active and autoStart properties  
+            if (unit.state.hasProperty("active") && unit.state.hasProperty("autoStart")) "enabled"
+            // Disabled: has stopIfRunning property
+            else if (unit.state.hasProperty("stopIfRunning")) "disabled"
+            // Masked and Missing both only have daemonReload, need another way to distinguish
+            // Check the actual property set or use the original type info stored in the resource
+            else if (unit.state.hasProperty("daemonReload") && unit.id.contains("masked")) "masked"
+            else if (unit.state.hasProperty("daemonReload") && unit.id.contains("removed")) "missing"
+            else if (unit.state.hasProperty("daemonReload")) "missing" // default for daemonReload-only
             else "missing"
         )
         let (daemonReload = if (unit.state.hasProperty("daemonReload")) unit.state.daemonReload else false)

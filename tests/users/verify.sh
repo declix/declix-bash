@@ -42,7 +42,7 @@ fi
 
 # Check testsrv properties
 user_info=$(getent passwd testsrv)
-if ! echo "$user_info" | grep -q "testsrv:x:999:999:Test Service User:/var/lib/testsrv:/usr/sbin/nologin"; then
+if ! echo "$user_info" | grep -q "testsrv:x:1999:1999:Test Service User:/var/lib/testsrv:/usr/sbin/nologin"; then
     echo "ERROR: testsrv properties don't match expected values"
     echo "Found: $user_info"
     exit 1
@@ -69,7 +69,7 @@ if ! getent group testsrv >/dev/null 2>&1; then
 fi
 
 group_info=$(getent group testsrv)
-if ! echo "$group_info" | grep -q "testsrv:x:999:"; then
+if ! echo "$group_info" | grep -q "testsrv:x:1999:"; then
     echo "ERROR: testsrv group properties don't match expected values"
     echo "Found: $group_info"
     exit 1
