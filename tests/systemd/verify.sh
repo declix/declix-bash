@@ -185,7 +185,7 @@ if ! grep -q "Test Application Service" /etc/systemd/system/test-app.service; th
     exit 1
 fi
 
-if ! grep -q "restart=always" /etc/systemd/system/test-app.service; then
+if ! grep -q "Restart=always" /etc/systemd/system/test-app.service; then
     echo "ERROR: test-app.service doesn't have expected restart policy"
     exit 1
 fi
