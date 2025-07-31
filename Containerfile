@@ -8,28 +8,21 @@ LABEL org.opencontainers.image.source="https://github.com/declix/declix-bash"
 LABEL org.opencontainers.image.vendor="Declix"
 LABEL org.opencontainers.image.licenses="MIT"
 
-# Install required tools
-RUN apt-get update && apt-get install -y \
-    curl \
-    git \
-    shellcheck \
+# Install only curl for downloading pkl
+RUN apt-get update && apt-get install -y curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Install mise
-RUN curl https://mise.run | sh && \
-    echo 'eval "$(~/.local/bin/mise activate bash)"' >> ~/.bashrc
+# Download and install pkl manually (latest stable)
+RUN curl -L -o /usr/local/bin/pkl https://github.com/apple/pkl/releases/latest/download/pkl-linux-amd64 \
+    && chmod +x /usr/local/bin/pkl
 
-# Set up mise and install pkl
-ENV PATH="/root/.local/bin:/root/.local/share/mise/shims:${PATH}"
-RUN /root/.local/bin/mise install pkl@latest && \
-    /root/.local/bin/mise use pkl@latest
-
-# Copy project files
 WORKDIR /app
-COPY . /app
 
-# Verify pkl is available
-RUN pkl --version
+# Copy the pre-built single-file release
+COPY out/declix-bash.sh /app/declix-bash.sh
 
-# Entrypoint is generate.sh
-ENTRYPOINT ["./generate.sh"]
+# Make executable
+RUN chmod +x /app/declix-bash.sh
+
+# Entrypoint is the single-file release
+ENTRYPOINT ["/app/declix-bash.sh"]
