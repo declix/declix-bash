@@ -4,11 +4,11 @@ deps:
     mise install
 
 # Build declix-bash container image
-build:
+build-container:
     podman build -f Containerfile -t declix-bash .
 
 # Generate script using container
-generate file: build
+generate-in-container file: build-container
     podman run --rm -v {{justfile_directory()}}/{{file}}:/work/resources.pkl declix-bash /work/resources.pkl
 
 # Generate script locally (requires pkl installed)
@@ -47,7 +47,7 @@ check-commit:
     @echo "=== All commit checks passed! ==="
 
 # Run interactive container
-run: build
+run-in-container: build-container
     podman run --rm -it --entrypoint bash declix-bash
 
 # Run tests (all in container)
