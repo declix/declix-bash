@@ -6,17 +6,20 @@ import "package://pkl.declix.org/pkl-declix@0.6.0#/fs/fs.pkl"
 import "package://pkl.declix.org/pkl-declix@0.6.0#/systemd/systemd.pkl"
 import "package://pkl.declix.org/pkl-declix@0.6.0#/user/user.pkl"
 
+// Helper function to generate from any resource
+local function genDynamic(resource: Any) = generate.gen(resource.toDynamic())
+
 examples {
   // APT Package examples
   ["APT package installed"] {
-    generate.gen(new apt.Package {
+    genDynamic(new apt.Package {
       name = "vim"
       state = "installed"
     })
   }
   
   ["APT package missing"] {
-    generate.gen(new apt.Package {
+    genDynamic(new apt.Package {
       name = "unwanted-package"
       state = "missing"
     })
@@ -24,7 +27,7 @@ examples {
   
   // File system examples
   ["File present with content"] {
-    generate.gen(new fs.File {
+    genDynamic(new fs.File {
       path = "/tmp/test.txt"
       state = new fs.FilePresent {
         content = "Hello World"
@@ -36,14 +39,14 @@ examples {
   }
   
   ["File absent"] {
-    generate.gen(new fs.File {
+    genDynamic(new fs.File {
       path = "/tmp/old-file.txt"
       state = new fs.Missing {}
     })
   }
   
   ["File with multiline content"] {
-    generate.gen(new fs.File {
+    genDynamic(new fs.File {
       path = "/etc/nginx/nginx.conf"
       state = new fs.FilePresent {
         content = """
@@ -60,7 +63,7 @@ examples {
   }
   
   ["File with special characters in path"] {
-    generate.gen(new fs.File {
+    genDynamic(new fs.File {
       path = "/tmp/file-with-dashes_and_underscores.test.txt"
       state = new fs.FilePresent {
         content = "test content"
@@ -73,7 +76,7 @@ examples {
   
   // Directory examples
   ["Directory present"] {
-    generate.gen(new fs.Dir {
+    genDynamic(new fs.Dir {
       path = "/opt/myapp"
       state = new fs.DirPresent {
         owner = "app"
@@ -84,7 +87,7 @@ examples {
   }
   
   ["Directory absent"] {
-    generate.gen(new fs.Dir {
+    genDynamic(new fs.Dir {
       path = "/tmp/old-dir"
       state = new fs.Missing {}
     })
@@ -92,7 +95,7 @@ examples {
   
   // Systemd examples
   ["Systemd service enabled"] {
-    generate.gen(new systemd.Unit {
+    genDynamic(new systemd.Unit {
       name = "nginx.service"
       state = new systemd.Enabled {
         active = true
@@ -103,7 +106,7 @@ examples {
   }
   
   ["Systemd service disabled"] {
-    generate.gen(new systemd.Unit {
+    genDynamic(new systemd.Unit {
       name = "bluetooth.service"
       state = new systemd.Disabled {
         stopIfRunning = true
@@ -113,7 +116,7 @@ examples {
   }
   
   ["Systemd service masked"] {
-    generate.gen(new systemd.Unit {
+    genDynamic(new systemd.Unit {
       name = "cups.service"
       state = new systemd.Masked {
         daemonReload = true
@@ -122,7 +125,7 @@ examples {
   }
   
   ["Systemd service missing"] {
-    generate.gen(new systemd.Unit {
+    genDynamic(new systemd.Unit {
       name = "old.service"
       state = new systemd.Missing {
         daemonReload = true
@@ -131,7 +134,7 @@ examples {
   }
   
   ["Systemd service with dots in name"] {
-    generate.gen(new systemd.Unit {
+    genDynamic(new systemd.Unit {
       name = "my-app.service"
       state = new systemd.Enabled {
         active = true
@@ -143,7 +146,7 @@ examples {
   
   // User examples
   ["User present"] {
-    generate.gen(new user.User {
+    genDynamic(new user.User {
       name = "webuser"
       state = new user.UserPresent {
         home = "/home/webuser"
@@ -153,7 +156,7 @@ examples {
   }
   
   ["User absent"] {
-    generate.gen(new user.User {
+    genDynamic(new user.User {
       name = "olduser"
       state = new user.Missing {}
     })
@@ -163,11 +166,11 @@ examples {
 facts {
   // Test Gen object types
   ["All resource types return proper Gen objects"] {
-    local aptGen = generate.gen(new apt.Package { name = "test"; state = "installed" })
-    local fileGen = generate.gen(new fs.File { path = "/test"; state = new fs.FilePresent { content = "test"; owner = "root"; group = "root"; permissions = "644" } })
-    local dirGen = generate.gen(new fs.Dir { path = "/test"; state = new fs.DirPresent { owner = "root"; group = "root"; permissions = "755" } })
-    local systemdGen = generate.gen(new systemd.Unit { name = "test.service"; state = new systemd.Enabled {} })
-    local userGen = generate.gen(new user.User { name = "test"; state = new user.UserPresent {} })
+    local aptGen = genDynamic(new apt.Package { name = "test"; state = "installed" })
+    local fileGen = genDynamic(new fs.File { path = "/test"; state = new fs.FilePresent { content = "test"; owner = "root"; group = "root"; permissions = "644" } })
+    local dirGen = genDynamic(new fs.Dir { path = "/test"; state = new fs.DirPresent { owner = "root"; group = "root"; permissions = "755" } })
+    local systemdGen = genDynamic(new systemd.Unit { name = "test.service"; state = new systemd.Enabled {} })
+    local userGen = genDynamic(new user.User { name = "test"; state = new user.UserPresent {} })
     
     aptGen is generate.AptPackageGen
     fileGen is generate.FsFileGen
@@ -178,7 +181,7 @@ facts {
   
   // Test Gen object properties
   ["APT package generates correct Gen object"] {
-    local aptGen = generate.gen(new apt.Package { name = "htop"; state = "installed" })
+    local aptGen = genDynamic(new apt.Package { name = "htop"; state = "installed" })
     aptGen.id == "apt:htop"
     aptGen.functionName == "_apt__htop"
     aptGen.result.join("\n").contains("__apt_installed")
@@ -187,7 +190,7 @@ facts {
   }
   
   ["File resource generates correct Gen object"] {
-    local fileGen = generate.gen(new fs.File {
+    local fileGen = genDynamic(new fs.File {
       path = "/etc/config.yml"
       state = new fs.FilePresent {
         content = "version: 1"
@@ -204,7 +207,7 @@ facts {
   }
   
   ["Directory resource generates correct Gen object"] {
-    local dirGen = generate.gen(new fs.Dir {
+    local dirGen = genDynamic(new fs.Dir {
       path = "/opt/app"
       state = new fs.DirPresent {
         owner = "app"
@@ -220,7 +223,7 @@ facts {
   }
   
   ["Systemd service generates correct Gen object"] {
-    local systemdGen = generate.gen(new systemd.Unit {
+    local systemdGen = genDynamic(new systemd.Unit {
       name = "nginx.service"
       state = new systemd.Enabled {
         active = true
@@ -236,7 +239,7 @@ facts {
   }
   
   ["User resource generates correct Gen object"] {
-    local userGen = generate.gen(new user.User {
+    local userGen = genDynamic(new user.User {
       name = "webuser"
       state = new user.UserPresent {
         home = "/home/webuser"
@@ -252,11 +255,11 @@ facts {
   
   // Test ID generation
   ["Resource IDs are correctly generated"] {
-    local apt = generate.gen(new apt.Package { name = "vim"; state = "installed" })
-    local file = generate.gen(new fs.File { path = "/tmp/test"; state = new fs.Missing {} })
-    local dir = generate.gen(new fs.Dir { path = "/opt/app"; state = new fs.Missing {} })
-    local systemd = generate.gen(new systemd.Unit { name = "nginx.service"; state = new systemd.Missing {} })
-    local user = generate.gen(new user.User { name = "appuser"; state = new user.Missing {} })
+    local apt = genDynamic(new apt.Package { name = "vim"; state = "installed" })
+    local file = genDynamic(new fs.File { path = "/tmp/test"; state = new fs.Missing {} })
+    local dir = genDynamic(new fs.Dir { path = "/opt/app"; state = new fs.Missing {} })
+    local systemd = genDynamic(new systemd.Unit { name = "nginx.service"; state = new systemd.Missing {} })
+    local user = genDynamic(new user.User { name = "appuser"; state = new user.Missing {} })
     
     apt.id == "apt:vim"
     file.id == "file:/tmp/test"
@@ -267,9 +270,9 @@ facts {
   
   // Test function name sanitization
   ["Function names are properly sanitized"] {
-    local normalFile = generate.gen(new fs.File { path = "/etc/config"; state = new fs.Missing {} })
-    local specialFile = generate.gen(new fs.File { path = "/etc/app-config.d/settings.conf"; state = new fs.Missing {} })
-    local serviceWithDots = generate.gen(new systemd.Unit { name = "my-app.service"; state = new systemd.Missing {} })
+    local normalFile = genDynamic(new fs.File { path = "/etc/config"; state = new fs.Missing {} })
+    local specialFile = genDynamic(new fs.File { path = "/etc/app-config.d/settings.conf"; state = new fs.Missing {} })
+    local serviceWithDots = genDynamic(new systemd.Unit { name = "my-app.service"; state = new systemd.Missing {} })
     
     normalFile.functionName == "_file____etc__config"
     specialFile.functionName == "_file____etc__app__config__d__settings__conf"
@@ -278,7 +281,7 @@ facts {
   
   // Test aux functions
   ["File with content has aux function"] {
-    local fileGen = generate.gen(new fs.File {
+    local fileGen = genDynamic(new fs.File {
       path = "/tmp/test.txt"
       state = new fs.FilePresent {
         content = "Hello World"
@@ -294,7 +297,7 @@ facts {
   }
   
   ["File absent has no aux function"] {
-    local absentFileGen = generate.gen(new fs.File {
+    local absentFileGen = genDynamic(new fs.File {
       path = "/tmp/absent.txt"
       state = new fs.Missing {}
     })
@@ -304,10 +307,10 @@ facts {
   
   // Test state handling
   ["Different systemd states generate correct parameters"] {
-    local enabled = generate.gen(new systemd.Unit { name = "test.service"; state = new systemd.Enabled { active = true; autoStart = true; daemonReload = true } })
-    local disabled = generate.gen(new systemd.Unit { name = "test.service"; state = new systemd.Disabled { stopIfRunning = true; daemonReload = true } })
-    local masked = generate.gen(new systemd.Unit { name = "test.service"; state = new systemd.Masked { daemonReload = true } })
-    local missing = generate.gen(new systemd.Unit { name = "test.service"; state = new systemd.Missing { daemonReload = true } })
+    local enabled = genDynamic(new systemd.Unit { name = "test.service"; state = new systemd.Enabled { active = true; autoStart = true; daemonReload = true } })
+    local disabled = genDynamic(new systemd.Unit { name = "test.service"; state = new systemd.Disabled { stopIfRunning = true; daemonReload = true } })
+    local masked = genDynamic(new systemd.Unit { name = "test.service"; state = new systemd.Masked { daemonReload = true } })
+    local missing = genDynamic(new systemd.Unit { name = "test.service"; state = new systemd.Missing { daemonReload = true } })
     
     enabled.result.join("\n").contains("enabled")
     disabled.result.join("\n").contains("disabled")
@@ -316,18 +319,18 @@ facts {
   }
   
   ["User states generate correct function calls"] {
-    local userPresent = generate.gen(new user.User { name = "test"; state = new user.UserPresent { home = "/home/test"; shell = "/bin/bash" } })
-    local userAbsent = generate.gen(new user.User { name = "test"; state = new user.Missing {} })
+    local userPresent = genDynamic(new user.User { name = "test"; state = new user.UserPresent { home = "/home/test"; shell = "/bin/bash" } })
+    local userAbsent = genDynamic(new user.User { name = "test"; state = new user.Missing {} })
     
     userPresent.result.join("\n").contains("__user_present")
     userAbsent.result.join("\n").contains("__user_absent")
   }
   
   ["File and directory states generate correct function calls"] {
-    local filePresent = generate.gen(new fs.File { path = "/test"; state = new fs.FilePresent { content = "test"; owner = "root"; group = "root"; permissions = "644" } })
-    local fileAbsent = generate.gen(new fs.File { path = "/test"; state = new fs.Missing {} })
-    local dirPresent = generate.gen(new fs.Dir { path = "/test"; state = new fs.DirPresent { owner = "root"; group = "root"; permissions = "755" } })
-    local dirAbsent = generate.gen(new fs.Dir { path = "/test"; state = new fs.Missing {} })
+    local filePresent = genDynamic(new fs.File { path = "/test"; state = new fs.FilePresent { content = "test"; owner = "root"; group = "root"; permissions = "644" } })
+    local fileAbsent = genDynamic(new fs.File { path = "/test"; state = new fs.Missing {} })
+    local dirPresent = genDynamic(new fs.Dir { path = "/test"; state = new fs.DirPresent { owner = "root"; group = "root"; permissions = "755" } })
+    local dirAbsent = genDynamic(new fs.Dir { path = "/test"; state = new fs.Missing {} })
     
     filePresent.result.join("\n").contains("__file_present")
     fileAbsent.result.join("\n").contains("__file_missing")
@@ -336,8 +339,8 @@ facts {
   }
   
   ["APT package states generate correct function calls"] {
-    local aptInstalled = generate.gen(new apt.Package { name = "vim"; state = "installed" })
-    local aptMissing = generate.gen(new apt.Package { name = "vim"; state = "missing" })
+    local aptInstalled = genDynamic(new apt.Package { name = "vim"; state = "installed" })
+    local aptMissing = genDynamic(new apt.Package { name = "vim"; state = "missing" })
     
     aptInstalled.result.join("\n").contains("__apt_installed")
     aptMissing.result.join("\n").contains("__apt_missing")
