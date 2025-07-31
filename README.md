@@ -15,18 +15,58 @@ declix-bash is part of the Declix ecosystem for declarative Linux configuration 
 - **Resource Types**: Support for packages, files, directories, systemd units, users, and groups
 - **Content Validation**: SHA256 checksums for file content integrity
 
-## Quick Start
+## Installation
 
-### Using the Release Build (Recommended)
+### Download from GitHub Releases (Recommended)
 
-The single-file release embeds all dependencies and only requires `pkl` at generation time:
+Get the latest single-file release that works anywhere with just `pkl` and `bash`:
 
 ```bash
-# Build the release (requires pkl)
-just release
+# Download the latest release
+curl -L -o declix-bash.sh https://github.com/declix/declix-bash/releases/latest/download/declix-bash.sh
+chmod +x declix-bash.sh
 
+# Or with wget
+wget https://github.com/declix/declix-bash/releases/latest/download/declix-bash.sh
+chmod +x declix-bash.sh
+
+# Verify installation
+./declix-bash.sh --help
+```
+
+### Dependencies
+
+declix-bash requires the following tools to generate scripts:
+
+| Tool | Purpose | Installation |
+|------|---------|-------------|
+| **pkl** | Configuration language runtime | [Install guide](https://pkl-lang.org/main/current/pkl-cli/index.html) |
+| **bash** | Shell interpreter (4.0+) | Pre-installed on most Linux distributions |
+
+#### Quick Install with mise
+
+If you have [mise](https://mise.jdx.dev/) installed, you can install all dependencies:
+
+```bash
+mise install pkl@latest
+```
+
+#### Manual Installation
+
+**pkl**: Follow the [official installation guide](https://pkl-lang.org/main/current/pkl-cli/index.html)
+
+**bash**: Usually pre-installed. Verify version with:
+```bash
+bash --version  # Should be 4.0 or higher
+```
+
+## Quick Start
+
+Generate and execute scripts:
+
+```bash
 # Generate script (requires pkl)
-./out/declix-bash.sh resources.pkl > generated-script.sh
+./declix-bash.sh resources.pkl > generated-script.sh
 
 # Execute on target system (no pkl required)
 bash generated-script.sh check
@@ -34,34 +74,6 @@ bash generated-script.sh diff
 bash generated-script.sh apply
 ```
 
-### Using Local Development
-
-```bash
-# Install dependencies (pkl, shellcheck, etc.)
-just deps
-
-# Generate script (requires pkl)
-./generate.sh resources.pkl > generated-script.sh
-
-# Execute generated script (no pkl required)
-bash generated-script.sh check
-bash generated-script.sh apply
-```
-
-### Using Container
-
-For isolated generation without installing Pkl locally:
-
-```bash
-# Build container (includes pkl)
-just build
-
-# Generate script using container
-just generate resources.pkl > generated-script.sh
-
-# Execute generated script on host (no pkl required)
-bash generated-script.sh check
-```
 
 ## Resource Types
 
@@ -204,17 +216,30 @@ resources = new Listing {
 }
 ```
 
-## Development Commands
+## Development
+
+### Getting Started
 
 ```bash
+# Clone the repository
+git clone https://github.com/declix/declix-bash.git
+cd declix-bash
+
 # Install development dependencies
 just deps
+```
 
-# Build container image
-just build
+### Common Commands
 
-# Generate script locally
+```bash
+# Generate script directly (bypasses release build)
+./generate.sh resources.pkl > generated-script.sh
+
+# Generate script locally (alternative to ./generate.sh)
 just generate-local resources.pkl
+
+# Build single-file release
+just release
 
 # Run tests
 just test
@@ -222,11 +247,20 @@ just test
 # Run shellcheck on scripts
 just shellcheck
 
-# Create single-file release
-just release
-
 # Run all commit checks
 just check-commit
+```
+
+### Container Development
+
+For isolated development without installing tools locally:
+
+```bash
+# Build container (includes pkl)
+just build
+
+# Generate script using container
+just generate resources.pkl
 ```
 
 ## Architecture
@@ -283,7 +317,7 @@ just test
 cd tests && just test-one files
 
 # Test release build
-just test-release
+cd tests && just test-release
 ```
 
 Test structure:
