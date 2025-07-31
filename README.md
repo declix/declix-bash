@@ -216,17 +216,27 @@ resources = new Listing {
 }
 ```
 
-## Development Commands
+## Development
+
+### Getting Started
 
 ```bash
+# Clone the repository
+git clone https://github.com/declix/declix-bash.git
+cd declix-bash
+
 # Install development dependencies
 just deps
+```
 
-# Build container image
-just build
+### Common Commands
 
-# Generate script locally (for development)
-just generate-local resources.pkl
+```bash
+# Generate script directly (bypasses release build)
+./generate.sh resources.pkl > generated-script.sh
+
+# Build single-file release
+just release
 
 # Run tests
 just test
@@ -234,50 +244,13 @@ just test
 # Run shellcheck on scripts
 just shellcheck
 
-# Create single-file release
-just release
-
 # Run all commit checks
 just check-commit
 ```
 
-### Alternative Development Methods
+### Container Development
 
-#### Build from Source
-
-For development or to get the latest unreleased features:
-
-```bash
-# Clone the repository
-git clone https://github.com/declix/declix-bash.git
-cd declix-bash
-
-# Install dependencies (pkl, shellcheck, etc.)
-just deps
-
-# Build single-file release
-just release
-
-# Use the built release
-./out/declix-bash.sh resources.pkl > generated-script.sh
-```
-
-#### Using Local Development
-
-For working on declix-bash itself:
-
-```bash
-# Generate script directly (requires pkl)
-./generate.sh resources.pkl > generated-script.sh
-
-# Execute generated script (no pkl required)
-bash generated-script.sh check
-bash generated-script.sh apply
-```
-
-#### Using Container
-
-For isolated generation without installing Pkl locally:
+For isolated development without installing tools locally:
 
 ```bash
 # Build container (includes pkl)
@@ -285,9 +258,6 @@ just build
 
 # Generate script using container
 just generate resources.pkl > generated-script.sh
-
-# Execute generated script on host (no pkl required)
-bash generated-script.sh check
 ```
 
 ## Architecture
