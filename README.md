@@ -272,13 +272,11 @@ For isolated development without installing tools locally:
 # Build container (includes pkl)
 just build-container
 
-# Generate script using container
+# Generate script using local container
 just generate-in-container resources.pkl
 
-# Use published container
-just pull-container                           # Pull latest from registry
-just generate-with-published resources.pkl   # Generate using published container
-just run-published                           # Interactive shell in published container
+# Run interactive shell in local container
+just run-in-container
 ```
 
 ## Architecture
