@@ -20,6 +20,33 @@ shellcheck:
     shellcheck generate.sh src/common.sh
     find . -name "*.sh" -not -path "./tests/*/generated.sh" -not -path "./local/*" -not -path "./node_modules/*" | xargs shellcheck
 
+# Run all checks except container tests (for CI commits)
+check-commit:
+    @echo "=== Running commit checks ==="
+    @echo ""
+    @echo "1. Running shellcheck..."
+    just shellcheck
+    @echo "✓ Shellcheck passed"
+    @echo ""
+    @echo "2. Running Pkl tests..."
+    pkl test generate_test.pkl
+    pkl test gen_function_test.pkl
+    @echo "✓ Pkl tests passed"
+    @echo ""
+    @echo "3. Running generation tests..."
+    cd tests && just test-local-generate
+    @echo "✓ Generation tests passed"
+    @echo ""
+    @echo "4. Building release file..."
+    just release
+    @echo "✓ Release build passed"
+    @echo ""
+    @echo "5. Testing release file generation..."
+    cd tests && just test-release-generate
+    @echo "✓ Release generation tests passed"
+    @echo ""
+    @echo "=== All commit checks passed! ==="
+
 # Run interactive container
 run: build
     podman run --rm -it --entrypoint bash declix-bash
