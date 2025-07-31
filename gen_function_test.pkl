@@ -1,0 +1,255 @@
+amends "pkl:test"
+
+import "./generate.pkl" as generate
+import "package://pkl.declix.org/pkl-declix@0.6.0#/apt/apt.pkl"
+import "package://pkl.declix.org/pkl-declix@0.6.0#/fs/fs.pkl"
+import "package://pkl.declix.org/pkl-declix@0.6.0#/systemd/systemd.pkl"
+import "package://pkl.declix.org/pkl-declix@0.6.0#/user/user.pkl"
+
+examples {
+  ["APT package installed"] {
+    generate.gen(new apt.Package {
+      name = "curl"
+      state = "installed"
+    })
+  }
+  
+  ["APT package missing"] {
+    generate.gen(new apt.Package {
+      name = "unwanted-package"
+      state = "missing"
+    })
+  }
+  
+  ["File present with content"] {
+    generate.gen(new fs.File {
+      path = "/etc/example.conf"
+      state = new fs.FilePresent {
+        content = "key=value\nsetting=true"
+        owner = "root"
+        group = "root"
+        permissions = "644"
+      }
+    })
+  }
+  
+  ["File absent"] {
+    generate.gen(new fs.File {
+      path = "/tmp/old-file.txt"
+      state = new fs.Missing {}
+    })
+  }
+  
+  ["Directory present"] {
+    generate.gen(new fs.Dir {
+      path = "/var/log/myapp"
+      state = new fs.DirPresent {
+        owner = "app"
+        group = "app" 
+        permissions = "755"
+      }
+    })
+  }
+  
+  ["Directory absent"] {
+    generate.gen(new fs.Dir {
+      path = "/tmp/old-dir"
+      state = new fs.Missing {}
+    })
+  }
+  
+  ["Systemd service enabled"] {
+    generate.gen(new systemd.Unit {
+      name = "apache2.service"
+      state = new systemd.Enabled {
+        active = true
+        autoStart = true
+        daemonReload = true
+      }
+    })
+  }
+  
+  ["Systemd service disabled"] {
+    generate.gen(new systemd.Unit {
+      name = "bluetooth.service"
+      state = new systemd.Disabled {
+        stopIfRunning = true
+        daemonReload = true
+      }
+    })
+  }
+  
+  ["Systemd service masked"] {
+    generate.gen(new systemd.Unit {
+      name = "cups.service"
+      state = new systemd.Masked {
+        daemonReload = true
+      }
+    })
+  }
+  
+  ["Systemd service missing"] {
+    generate.gen(new systemd.Unit {
+      name = "old.service"
+      state = new systemd.Missing {
+        daemonReload = true
+      }
+    })
+  }
+  
+  ["User present"] {
+    generate.gen(new user.User {
+      name = "appuser"
+      state = new user.UserPresent {
+        home = "/home/appuser" 
+        shell = "/bin/bash"
+      }
+    })
+  }
+  
+  ["User absent"] {
+    generate.gen(new user.User {
+      name = "olduser"
+      state = new user.Missing {}
+    })
+  }
+  
+  ["File with special characters"] {
+    generate.gen(new fs.File {
+      path = "/tmp/file-with-dashes_and_underscores.test.txt"
+      state = new fs.FilePresent {
+        content = "test content"
+        owner = "root"
+        group = "root"
+        permissions = "644"
+      }
+    })
+  }
+  
+  ["Service with dots in name"] {
+    generate.gen(new systemd.Unit {
+      name = "my-app.service"
+      state = new systemd.Enabled {
+        active = true
+        autoStart = true
+        daemonReload = true
+      }
+    })
+  }
+  
+  ["File with multiline content"] {
+    generate.gen(new fs.File {
+      path = "/etc/nginx/nginx.conf"
+      state = new fs.FilePresent {
+        content = """
+          server {
+              listen 80;
+              root /var/www/html;
+          }
+          """
+        owner = "root"
+        group = "root"
+        permissions = "644"
+      }
+    })
+  }
+}
+
+facts {
+  ["All resource types return proper Gen objects"] {
+    local aptGen = generate.gen(new apt.Package { name = "test"; state = "installed" })
+    local fileGen = generate.gen(new fs.File { path = "/test"; state = new fs.FilePresent { content = "test"; owner = "root"; group = "root"; permissions = "644" } })
+    local dirGen = generate.gen(new fs.Dir { path = "/test"; state = new fs.DirPresent { owner = "root"; group = "root"; permissions = "755" } })
+    local systemdGen = generate.gen(new systemd.Unit { name = "test.service"; state = new systemd.Enabled {} })
+    local userGen = generate.gen(new user.User { name = "test"; state = new user.UserPresent {} })
+    
+    aptGen is generate.AptPackageGen
+    fileGen is generate.FsFileGen
+    dirGen is generate.FsDirGen
+    systemdGen is generate.SystemdUnitGen
+    userGen is generate.UserGen
+  }
+  
+  ["Function names are properly sanitized"] {
+    local normalFile = generate.gen(new fs.File { path = "/etc/config"; state = new fs.Missing {} })
+    local specialFile = generate.gen(new fs.File { path = "/etc/app-config.d/settings.conf"; state = new fs.Missing {} })
+    local serviceWithDots = generate.gen(new systemd.Unit { name = "my-app.service"; state = new systemd.Missing {} })
+    
+    normalFile.functionName == "_file____etc__config"
+    specialFile.functionName == "_file____etc__app__config__d__settings__conf"
+    serviceWithDots.functionName == "_systemd__my__app__service"
+  }
+  
+  ["Resource IDs are correctly generated"] {
+    local apt = generate.gen(new apt.Package { name = "vim"; state = "installed" })
+    local file = generate.gen(new fs.File { path = "/tmp/test"; state = new fs.Missing {} })
+    local dir = generate.gen(new fs.Dir { path = "/opt/app"; state = new fs.Missing {} })
+    local systemd = generate.gen(new systemd.Unit { name = "nginx.service"; state = new systemd.Missing {} })
+    local user = generate.gen(new user.User { name = "appuser"; state = new user.Missing {} })
+    
+    apt.id == "apt:vim"
+    file.id == "file:/tmp/test"
+    dir.id == "dir:/opt/app"
+    systemd.id == "systemd:nginx.service"
+    user.id == "user:appuser"
+  }
+  
+  ["File content generates aux functions"] {
+    local fileWithContent = generate.gen(new fs.File {
+      path = "/tmp/test.txt"
+      state = new fs.FilePresent {
+        content = "Hello World"
+        owner = "root"
+        group = "root"
+        permissions = "644"
+      }
+    })
+    local fileWithoutContent = generate.gen(new fs.File {
+      path = "/tmp/absent.txt"
+      state = new fs.Missing {}
+    })
+    
+    fileWithContent.aux.length > 0
+    fileWithoutContent.aux.length == 0
+  }
+  
+  ["Different systemd states generate correct parameters"] {
+    local enabled = generate.gen(new systemd.Unit { name = "test.service"; state = new systemd.Enabled { active = true; autoStart = true; daemonReload = true } })
+    local disabled = generate.gen(new systemd.Unit { name = "test.service"; state = new systemd.Disabled { stopIfRunning = true; daemonReload = true } })
+    local masked = generate.gen(new systemd.Unit { name = "test.service"; state = new systemd.Masked { daemonReload = true } })
+    local missing = generate.gen(new systemd.Unit { name = "test.service"; state = new systemd.Missing { daemonReload = true } })
+    
+    enabled.result.join("\n").contains("enabled")
+    disabled.result.join("\n").contains("disabled")
+    masked.result.join("\n").contains("masked")  // masked state
+    missing.result.join("\n").contains("missing")
+  }
+  
+  ["User states generate correct function calls"] {
+    local userPresent = generate.gen(new user.User { name = "test"; state = new user.UserPresent { home = "/home/test"; shell = "/bin/bash" } })
+    local userAbsent = generate.gen(new user.User { name = "test"; state = new user.Missing {} })
+    
+    userPresent.result.join("\n").contains("__user_present")
+    userAbsent.result.join("\n").contains("__user_absent")
+  }
+  
+  ["File and directory states generate correct function calls"] {
+    local filePresent = generate.gen(new fs.File { path = "/test"; state = new fs.FilePresent { content = "test"; owner = "root"; group = "root"; permissions = "644" } })
+    local fileAbsent = generate.gen(new fs.File { path = "/test"; state = new fs.Missing {} })
+    local dirPresent = generate.gen(new fs.Dir { path = "/test"; state = new fs.DirPresent { owner = "root"; group = "root"; permissions = "755" } })
+    local dirAbsent = generate.gen(new fs.Dir { path = "/test"; state = new fs.Missing {} })
+    
+    filePresent.result.join("\n").contains("__file_present")
+    fileAbsent.result.join("\n").contains("__file_missing")
+    dirPresent.result.join("\n").contains("__dir_present")
+    dirAbsent.result.join("\n").contains("__dir_missing")
+  }
+  
+  ["APT package states generate correct function calls"] {
+    local aptInstalled = generate.gen(new apt.Package { name = "vim"; state = "installed" })
+    local aptMissing = generate.gen(new apt.Package { name = "vim"; state = "missing" })
+    
+    aptInstalled.result.join("\n").contains("__apt_installed")
+    aptMissing.result.join("\n").contains("__apt_missing")
+  }
+}

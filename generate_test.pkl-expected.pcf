@@ -1,0 +1,110 @@
+examples {
+  ["APT package installed"] {
+    new {
+      id = "apt:vim"
+      result {
+        #"__apt_installed "$action" "vim" "false""#
+      }
+      aux {}
+      functionName = "_apt__vim"
+      pkg {
+        type = "apt"
+        id = "apt:vim"
+        name = "vim"
+        state = "installed"
+        updateBeforeInstall = false
+      }
+    }
+  }
+  ["File present with content"] {
+    new {
+      id = "file:/tmp/test.txt"
+      result {
+        #"__file_present "$action" "/tmp/test.txt" "a591a6d40bf420404a011733cfb7b190d62c65bf0bcda32b57b277d9ad9f146e" "root" "root" "644""#
+      }
+      aux {
+        """
+        function __content__a591a6d40bf420404a011733cfb7b190d62c65bf0bcda32b57b277d9ad9f146e() {
+            local content="SGVsbG8gV29ybGQ="
+            echo $content | base64 --decode
+        }
+        """
+      }
+      functionName = "_file____tmp__test__txt"
+      file {
+        type = "file"
+        id = "file:/tmp/test.txt"
+        path = "/tmp/test.txt"
+        state {
+          owner = "root"
+          group = "root"
+          permissions = "644"
+          content = "Hello World"
+        }
+      }
+    }
+  }
+  ["Directory present"] {
+    new {
+      id = "dir:/opt/myapp"
+      result {
+        #"__dir_present "$action" "/opt/myapp" "app" "app" "755""#
+      }
+      aux {}
+      functionName = "_dir____opt__myapp"
+      dir {
+        type = "dir"
+        id = "dir:/opt/myapp"
+        path = "/opt/myapp"
+        state {
+          owner = "app"
+          group = "app"
+          permissions = "755"
+        }
+      }
+    }
+  }
+  ["Systemd service enabled"] {
+    new {
+      id = "systemd:nginx.service"
+      result {
+        #"__systemd_unit_present "$action" "nginx.service" "enabled" "true" "true" "true" "false""#
+      }
+      aux {}
+      functionName = "_systemd__nginx__service"
+      unit {
+        type = "systemd"
+        id = "systemd:nginx.service"
+        name = "nginx.service"
+        state {
+          type = "enabled"
+          active = true
+          autoStart = true
+          daemonReload = true
+        }
+      }
+    }
+  }
+  ["User present"] {
+    new {
+      id = "user:webuser"
+      result {
+        #"__user_present "$action" "webuser" "null" "null" "null" "/home/webuser" "/bin/bash""#
+      }
+      aux {}
+      functionName = "_user__webuser"
+      user {
+        type = "user"
+        id = "user:webuser"
+        name = "webuser"
+        state {
+          uid = null
+          gid = null
+          comment = null
+          home = "/home/webuser"
+          shell = "/bin/bash"
+        }
+      }
+    }
+  }
+}

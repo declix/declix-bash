@@ -9,7 +9,7 @@ import "pkl:math"
 
 function generate(resources): String = genScript(toGens(resources)).join("\n")
 
-function gen(resources): String = generate(resources)
+function gen(resource: Any): Gen = toGen(resource)
 
 local commonSh = read("src/common.sh");
 

@@ -1,0 +1,175 @@
+amends "pkl:test"
+
+import "./generate.pkl" as generate
+import "package://pkl.declix.org/pkl-declix@0.6.0#/apt/apt.pkl"
+import "package://pkl.declix.org/pkl-declix@0.6.0#/fs/fs.pkl"
+import "package://pkl.declix.org/pkl-declix@0.6.0#/systemd/systemd.pkl"
+import "package://pkl.declix.org/pkl-declix@0.6.0#/user/user.pkl"
+
+examples {
+  ["APT package installed"] {
+    generate.gen(new apt.Package {
+      name = "vim"
+      state = "installed"
+    })
+  }
+  
+  ["File present with content"] {
+    generate.gen(new fs.File {
+      path = "/tmp/test.txt"
+      state = new fs.FilePresent {
+        content = "Hello World"
+        owner = "root"
+        group = "root"
+        permissions = "644"
+      }
+    })
+  }
+  
+  ["Directory present"] {
+    generate.gen(new fs.Dir {
+      path = "/opt/myapp"
+      state = new fs.DirPresent {
+        owner = "app"
+        group = "app"
+        permissions = "755"
+      }
+    })
+  }
+  
+  ["Systemd service enabled"] {
+    generate.gen(new systemd.Unit {
+      name = "nginx.service"
+      state = new systemd.Enabled {
+        active = true
+        autoStart = true
+        daemonReload = true
+      }
+    })
+  }
+  
+  ["User present"] {
+    generate.gen(new user.User {
+      name = "webuser"
+      state = new user.UserPresent {
+        home = "/home/webuser"
+        shell = "/bin/bash"
+      }
+    })
+  }
+}
+
+facts {
+  ["APT package generates correct Gen object"] {
+    local aptGen = generate.gen(new apt.Package { name = "htop"; state = "installed" })
+    aptGen.id == "apt:htop"
+    aptGen.functionName == "_apt__htop"
+    aptGen.result.join("\n").contains("__apt_installed")
+    aptGen.result.join("\n").contains("htop")
+    aptGen.result.join("\n").contains("installed")
+  }
+  
+  ["File resource generates correct Gen object"] {
+    local fileGen = generate.gen(new fs.File {
+      path = "/etc/config.yml"
+      state = new fs.FilePresent {
+        content = "version: 1"
+        owner = "app"
+        group = "app"
+        permissions = "600"
+      }
+    })
+    fileGen.id == "file:/etc/config.yml"
+    fileGen.functionName == "_file____etc__config__yml"
+    fileGen.result.join("\n").contains("__file_present")
+    fileGen.result.join("\n").contains("/etc/config.yml")
+    fileGen.result.join("\n").contains("600")
+  }
+  
+  ["Directory resource generates correct Gen object"] {
+    local dirGen = generate.gen(new fs.Dir {
+      path = "/opt/app"
+      state = new fs.DirPresent {
+        owner = "app"
+        group = "app"
+        permissions = "755"
+      }
+    })
+    dirGen.id == "dir:/opt/app"
+    dirGen.functionName == "_dir____opt__app"
+    dirGen.result.join("\n").contains("__dir_present")
+    dirGen.result.join("\n").contains("/opt/app")
+    dirGen.result.join("\n").contains("755")
+  }
+  
+  ["Systemd service generates correct Gen object"] {
+    local systemdGen = generate.gen(new systemd.Unit {
+      name = "nginx.service"
+      state = new systemd.Enabled {
+        active = true
+        autoStart = true
+        daemonReload = true
+      }
+    })
+    systemdGen.id == "systemd:nginx.service"
+    systemdGen.functionName == "_systemd__nginx__service"
+    systemdGen.result.join("\n").contains("__systemd_unit_present")
+    systemdGen.result.join("\n").contains("nginx.service")
+    systemdGen.result.join("\n").contains("enabled")
+  }
+  
+  ["User resource generates correct Gen object"] {
+    local userGen = generate.gen(new user.User {
+      name = "webuser"
+      state = new user.UserPresent {
+        home = "/home/webuser"
+        shell = "/bin/bash"
+      }
+    })
+    userGen.id == "user:webuser"
+    userGen.functionName == "_user__webuser"
+    userGen.result.join("\n").contains("__user_present")
+    userGen.result.join("\n").contains("webuser")
+    userGen.result.join("\n").contains("/home/webuser")
+  }
+  
+  ["File with content has aux function"] {
+    local fileGen = generate.gen(new fs.File {
+      path = "/tmp/test.txt"
+      state = new fs.FilePresent {
+        content = "Hello World"
+        owner = "root"
+        group = "root"
+        permissions = "644"
+      }
+    })
+    
+    fileGen.aux.length > 0
+    fileGen.aux.join("\n").contains("function __content__")
+    fileGen.aux.join("\n").contains("base64 --decode")
+  }
+  
+  ["File absent has no aux function"] {
+    local absentFileGen = generate.gen(new fs.File {
+      path = "/tmp/absent.txt"
+      state = new fs.Missing {}
+    })
+    
+    absentFileGen.aux.length == 0
+  }
+  
+  ["Special characters are sanitized in function names"] {
+    local specialGen = generate.gen(new fs.File {
+      path = "/etc/app-config.d/settings.conf"
+      state = new fs.FilePresent {
+        content = "test"
+        owner = "root"
+        group = "root"
+        permissions = "644"
+      }
+    })
+    
+    specialGen.functionName == "_file____etc__app__config__d__settings__conf"
+    specialGen.result.join("\n").contains("/etc/app-config.d/settings.conf")
+  }
+}

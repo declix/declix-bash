@@ -59,6 +59,11 @@ jobs:
         run: |
           just shellcheck
 
+      - name: Run Pkl tests
+        run: |
+          pkl test generate_test.pkl
+          pkl test gen_function_test.pkl
+
       - name: Run generation tests
         run: |
           cd tests && just test-local-generate
