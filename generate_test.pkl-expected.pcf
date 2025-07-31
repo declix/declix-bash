@@ -313,4 +313,382 @@ examples {
       }
     }
   }
+  ["APT package Gen object"] {
+    new {
+      id = "apt:test"
+      result {
+        #"__apt_installed "$action" "test" "false""#
+      }
+      aux {}
+      functionName = "_apt__test"
+      pkg {
+        type = "apt"
+        id = "apt:test"
+        name = "test"
+        state = "installed"
+        updateBeforeInstall = false
+      }
+    }
+  }
+  ["File Gen object"] {
+    new {
+      id = "file:/test"
+      result {
+        #"__file_present "$action" "/test" "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08" "root" "root" "644""#
+      }
+      aux {
+        """
+        function __content__9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08() {
+            local content="dGVzdA=="
+            echo $content | base64 --decode
+        }
+        """
+      }
+      functionName = "_file____test"
+      file {
+        type = "file"
+        id = "file:/test"
+        path = "/test"
+        state {
+          owner = "root"
+          group = "root"
+          permissions = "644"
+          content = "test"
+        }
+      }
+    }
+  }
+  ["Directory Gen object"] {
+    new {
+      id = "dir:/test"
+      result {
+        #"__dir_present "$action" "/test" "root" "root" "755""#
+      }
+      aux {}
+      functionName = "_dir____test"
+      dir {
+        type = "dir"
+        id = "dir:/test"
+        path = "/test"
+        state {
+          owner = "root"
+          group = "root"
+          permissions = "755"
+        }
+      }
+    }
+  }
+  ["Systemd Gen object"] {
+    new {
+      id = "systemd:test.service"
+      result {
+        #"__systemd_unit_present "$action" "test.service" "enabled" "true" "true" "true" "false""#
+      }
+      aux {}
+      functionName = "_systemd__test__service"
+      unit {
+        type = "systemd"
+        id = "systemd:test.service"
+        name = "test.service"
+        state {
+          type = "enabled"
+          active = true
+          autoStart = true
+          daemonReload = true
+        }
+      }
+    }
+  }
+  ["User Gen object"] {
+    new {
+      id = "user:test"
+      result {
+        #"__user_present "$action" "test" "null" "null" "null" "/nonexistent" "/usr/sbin/nologin""#
+      }
+      aux {}
+      functionName = "_user__test"
+      user {
+        type = "user"
+        id = "user:test"
+        name = "test"
+        state {
+          uid = null
+          gid = null
+          comment = null
+          home = "/nonexistent"
+          shell = "/usr/sbin/nologin"
+        }
+      }
+    }
+  }
+  ["APT package htop"] {
+    new {
+      id = "apt:htop"
+      result {
+        #"__apt_installed "$action" "htop" "false""#
+      }
+      aux {}
+      functionName = "_apt__htop"
+      pkg {
+        type = "apt"
+        id = "apt:htop"
+        name = "htop"
+        state = "installed"
+        updateBeforeInstall = false
+      }
+    }
+  }
+  ["Config file"] {
+    new {
+      id = "file:/etc/config.yml"
+      result {
+        #"__file_present "$action" "/etc/config.yml" "1a6ddd3533d91cae4b3742d4294fb07ee863a4d667fe598f01365bd68a18bcfd" "app" "app" "600""#
+      }
+      aux {
+        """
+        function __content__1a6ddd3533d91cae4b3742d4294fb07ee863a4d667fe598f01365bd68a18bcfd() {
+            local content="dmVyc2lvbjogMQ=="
+            echo $content | base64 --decode
+        }
+        """
+      }
+      functionName = "_file____etc__config__yml"
+      file {
+        type = "file"
+        id = "file:/etc/config.yml"
+        path = "/etc/config.yml"
+        state {
+          owner = "app"
+          group = "app"
+          permissions = "600"
+          content = "version: 1"
+        }
+      }
+    }
+  }
+  ["App directory"] {
+    new {
+      id = "dir:/opt/app"
+      result {
+        #"__dir_present "$action" "/opt/app" "app" "app" "755""#
+      }
+      aux {}
+      functionName = "_dir____opt__app"
+      dir {
+        type = "dir"
+        id = "dir:/opt/app"
+        path = "/opt/app"
+        state {
+          owner = "app"
+          group = "app"
+          permissions = "755"
+        }
+      }
+    }
+  }
+  ["Nginx service"] {
+    new {
+      id = "systemd:nginx.service"
+      result {
+        #"__systemd_unit_present "$action" "nginx.service" "enabled" "true" "true" "true" "false""#
+      }
+      aux {}
+      functionName = "_systemd__nginx__service"
+      unit {
+        type = "systemd"
+        id = "systemd:nginx.service"
+        name = "nginx.service"
+        state {
+          type = "enabled"
+          active = true
+          autoStart = true
+          daemonReload = true
+        }
+      }
+    }
+  }
+  ["Web user"] {
+    new {
+      id = "user:webuser"
+      result {
+        #"__user_present "$action" "webuser" "null" "null" "null" "/home/webuser" "/bin/bash""#
+      }
+      aux {}
+      functionName = "_user__webuser"
+      user {
+        type = "user"
+        id = "user:webuser"
+        name = "webuser"
+        state {
+          uid = null
+          gid = null
+          comment = null
+          home = "/home/webuser"
+          shell = "/bin/bash"
+        }
+      }
+    }
+  }
+  ["Complex file path"] {
+    new {
+      id = "file:/etc/app-config.d/settings.conf"
+      result {
+        #"__file_missing "$action" "/etc/app-config.d/settings.conf""#
+      }
+      aux {}
+      functionName = "_file____etc__app__config__d__settings__conf"
+      file {
+        type = "file"
+        id = "file:/etc/app-config.d/settings.conf"
+        path = "/etc/app-config.d/settings.conf"
+        state {}
+      }
+    }
+  }
+  ["Service with dots"] {
+    new {
+      id = "systemd:my-app.service"
+      result {
+        #"__systemd_unit_present "$action" "my-app.service" "missing" "true" "false" "false" "false""#
+      }
+      aux {}
+      functionName = "_systemd__my__app__service"
+      unit {
+        type = "systemd"
+        id = "systemd:my-app.service"
+        name = "my-app.service"
+        state {
+          type = "missing"
+          daemonReload = true
+        }
+      }
+    }
+  }
+  ["File with content"] {
+    new {
+      id = "file:/tmp/test.txt"
+      result {
+        #"__file_present "$action" "/tmp/test.txt" "a591a6d40bf420404a011733cfb7b190d62c65bf0bcda32b57b277d9ad9f146e" "root" "root" "644""#
+      }
+      aux {
+        """
+        function __content__a591a6d40bf420404a011733cfb7b190d62c65bf0bcda32b57b277d9ad9f146e() {
+            local content="SGVsbG8gV29ybGQ="
+            echo $content | base64 --decode
+        }
+        """
+      }
+      functionName = "_file____tmp__test__txt"
+      file {
+        type = "file"
+        id = "file:/tmp/test.txt"
+        path = "/tmp/test.txt"
+        state {
+          owner = "root"
+          group = "root"
+          permissions = "644"
+          content = "Hello World"
+        }
+      }
+    }
+  }
+  ["Enabled service"] {
+    new {
+      id = "systemd:test-enabled.service"
+      result {
+        #"__systemd_unit_present "$action" "test-enabled.service" "enabled" "true" "true" "true" "false""#
+      }
+      aux {}
+      functionName = "_systemd__test__enabled__service"
+      unit {
+        type = "systemd"
+        id = "systemd:test-enabled.service"
+        name = "test-enabled.service"
+        state {
+          type = "enabled"
+          active = true
+          autoStart = true
+          daemonReload = true
+        }
+      }
+    }
+  }
+  ["Disabled service"] {
+    new {
+      id = "systemd:test-disabled.service"
+      result {
+        #"__systemd_unit_present "$action" "test-disabled.service" "disabled" "true" "false" "false" "true""#
+      }
+      aux {}
+      functionName = "_systemd__test__disabled__service"
+      unit {
+        type = "systemd"
+        id = "systemd:test-disabled.service"
+        name = "test-disabled.service"
+        state {
+          type = "disabled"
+          autoStart = false
+          stopIfRunning = true
+          daemonReload = true
+        }
+      }
+    }
+  }
+  ["Masked service"] {
+    new {
+      id = "systemd:test-masked.service"
+      result {
+        #"__systemd_unit_present "$action" "test-masked.service" "masked" "true" "false" "false" "false""#
+      }
+      aux {}
+      functionName = "_systemd__test__masked__service"
+      unit {
+        type = "systemd"
+        id = "systemd:test-masked.service"
+        name = "test-masked.service"
+        state {
+          type = "masked"
+          daemonReload = true
+        }
+      }
+    }
+  }
+  ["Test user present"] {
+    new {
+      id = "user:testuser"
+      result {
+        #"__user_present "$action" "testuser" "null" "null" "null" "/home/testuser" "/bin/bash""#
+      }
+      aux {}
+      functionName = "_user__testuser"
+      user {
+        type = "user"
+        id = "user:testuser"
+        name = "testuser"
+        state {
+          uid = null
+          gid = null
+          comment = null
+          home = "/home/testuser"
+          shell = "/bin/bash"
+        }
+      }
+    }
+  }
+  ["Test user absent"] {
+    new {
+      id = "user:olduser"
+      result {
+        #"__user_absent "$action" "olduser""#
+      }
+      aux {}
+      functionName = "_user__olduser"
+      user {
+        type = "user"
+        id = "user:olduser"
+        name = "olduser"
+        state {}
+      }
+    }
+  }
 }

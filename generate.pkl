@@ -9,24 +9,12 @@ import "pkl:math"
 
 function generate(resources): String = genScript(toGens(resources)).join("\n")
 
-function gen(resource: Any): Gen = 
-    if (resource is apt.Package) 
-        new AptPackageGen { pkg = resource.toDynamic() }
-    else if (resource is fs.File) 
-        new FsFileGen { file = resource.toDynamic() }
-    else if (resource is fs.Dir) 
-        new FsDirGen { dir = resource.toDynamic() }
-    else if (resource is systemd.Unit)
-        new SystemdUnitGen { unit = resource.toDynamic() }
-    else if (resource is user.User)
-        new UserGen { user = resource.toDynamic() }
-    else if (resource is user.Group)
-        new GroupGen { group = resource.toDynamic() }
-    else if (resource.type == "apt")
+function gen(resource: Dynamic): Gen = 
+    if (resource.type == "apt")
         new AptPackageGen { pkg = resource }
-    else if (resource.type == "file" || resource.type == "fs:file")
+    else if (resource.type == "file")
         new FsFileGen { file = resource }
-    else if (resource.type == "dir" || resource.type == "fs:dir")
+    else if (resource.type == "dir")
         new FsDirGen { dir = resource }
     else if (resource.type == "systemd")
         new SystemdUnitGen { unit = resource }
@@ -123,10 +111,7 @@ local function genScript(gens: Listing<Gen>): Listing<String> = new Listing {
 }
 
 function toGens(resources): Listing<Gen> = 
-    if (resources is Listing)
-        resources.toList().map((r)->gen(r)).toListing()
-    else
-        resources.toList().map((r)->gen(r)).toListing()
+    resources.toList().map((r)->gen(if (r.hasProperty("toDynamic")) r.toDynamic() else r)).toListing()
 
 
 abstract class Gen {
@@ -235,7 +220,7 @@ class UserGen extends Gen {
     fixed id = user.id
     
     fixed result = new Listing {
-        if (user.state is user.UserPresent || (user.state.hasProperty("uid") || user.state.hasProperty("shell") || user.state.hasProperty("comment")))
+        if (user.state.hasProperty("uid") || user.state.hasProperty("shell") || user.state.hasProperty("comment") || user.state.hasProperty("home"))
             let (state = user.state)
             let (uid = if (state.hasProperty("uid")) state.uid else "")
             let (gid = if (state.hasProperty("gid")) state.gid else "")
@@ -257,7 +242,7 @@ class GroupGen extends Gen {
     fixed id = group.id
     
     fixed result = new Listing {
-        if (group.state is user.GroupPresent || (group.state.hasProperty("gid") || group.state.hasProperty("members")))
+        if (group.state.hasProperty("gid") || group.state.hasProperty("members"))
             let (state = group.state)
             let (gid = if (state.hasProperty("gid")) state.gid else "")
             let (members = if (state.hasProperty("members") && state.members != null) state.members.toList().join(",") else "")
@@ -272,7 +257,8 @@ class GroupGen extends Gen {
 }
 
 local function deepToDynamic(x: base.Typed): Dynamic = x.toDynamic().toMap().mapValues((k, v) -> maybeToDynamic(v)).toDynamic()
-local function maybeToDynamic(x: Any) = if (x is Typed) deepToDynamic(x) else x
+local function maybeToDynamic(x: Any) = 
+    if (x.hasProperty("toDynamic")) deepToDynamic(x as base.Typed) else x
 
 const local function encodeContentBase64(content): String = 
     if (content is String) 
