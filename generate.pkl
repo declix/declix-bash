@@ -9,7 +9,33 @@ import "pkl:math"
 
 function generate(resources): String = genScript(toGens(resources)).join("\n")
 
-function gen(resources): String = generate(resources)
+function gen(resource: Any): Gen = 
+    if (resource is apt.Package) 
+        new AptPackageGen { pkg = resource.toDynamic() }
+    else if (resource is fs.File) 
+        new FsFileGen { file = resource.toDynamic() }
+    else if (resource is fs.Dir) 
+        new FsDirGen { dir = resource.toDynamic() }
+    else if (resource is systemd.Unit)
+        new SystemdUnitGen { unit = resource.toDynamic() }
+    else if (resource is user.User)
+        new UserGen { user = resource.toDynamic() }
+    else if (resource is user.Group)
+        new GroupGen { group = resource.toDynamic() }
+    else if (resource.type == "apt")
+        new AptPackageGen { pkg = resource }
+    else if (resource.type == "file" || resource.type == "fs:file")
+        new FsFileGen { file = resource }
+    else if (resource.type == "dir" || resource.type == "fs:dir")
+        new FsDirGen { dir = resource }
+    else if (resource.type == "systemd")
+        new SystemdUnitGen { unit = resource }
+    else if (resource.type == "user")
+        new UserGen { user = resource }
+    else if (resource.type == "group")
+        new GroupGen { group = resource }
+    else 
+        throw("unsupported resource type: \(resource.type)")
 
 local commonSh = read("src/common.sh");
 
@@ -98,37 +124,10 @@ local function genScript(gens: Listing<Gen>): Listing<String> = new Listing {
 
 function toGens(resources): Listing<Gen> = 
     if (resources is Listing)
-        resources.toList().map((r)->toGen(r)).toListing()
+        resources.toList().map((r)->gen(r)).toListing()
     else
-        resources.toList().map((r)->toGen(r)).toListing()
+        resources.toList().map((r)->gen(r)).toListing()
 
-function toGen(resource: Any): Gen = 
-    if (resource is apt.Package) 
-        new AptPackageGen { pkg = resource.toDynamic() }
-    else if (resource is fs.File) 
-        new FsFileGen { file = resource.toDynamic() }
-    else if (resource is fs.Dir) 
-        new FsDirGen { dir = resource.toDynamic() }
-    else if (resource is systemd.Unit)
-        new SystemdUnitGen { unit = resource.toDynamic() }
-    else if (resource is user.User)
-        new UserGen { user = resource.toDynamic() }
-    else if (resource is user.Group)
-        new GroupGen { group = resource.toDynamic() }
-    else if (resource.type == "apt")
-        new AptPackageGen { pkg = resource }
-    else if (resource.type == "file" || resource.type == "fs:file")
-        new FsFileGen { file = resource }
-    else if (resource.type == "dir" || resource.type == "fs:dir")
-        new FsDirGen { dir = resource }
-    else if (resource.type == "systemd")
-        new SystemdUnitGen { unit = resource }
-    else if (resource.type == "user")
-        new UserGen { user = resource }
-    else if (resource.type == "group")
-        new GroupGen { group = resource }
-    else 
-        throw("unsupported resource type: \(resource.type)")
 
 abstract class Gen {
     fixed id: String

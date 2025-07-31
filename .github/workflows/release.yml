@@ -55,21 +55,9 @@ jobs:
             conventional-changelog-conventionalcommits \
             -D
 
-      - name: Run shellcheck
+      - name: Run commit checks
         run: |
-          just shellcheck
-
-      - name: Run generation tests
-        run: |
-          cd tests && just test-local-generate
-
-      - name: Build release file
-        run: |
-          just release
-
-      - name: Test release file generation
-        run: |
-          cd tests && just test-release-generate
+          just check-commit
 
       - name: Run container tests
         run: |
