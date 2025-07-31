@@ -34,12 +34,35 @@ chmod +x declix-bash.sh
 ./declix-bash.sh --help
 ```
 
-### Prerequisites
+### Dependencies
 
-Before using declix-bash, ensure you have:
+declix-bash requires the following tools to generate scripts:
 
-- **pkl**: Install from [pkl-lang.org](https://pkl-lang.org/main/current/pkl-cli/index.html)
-- **bash**: Version 4.0+ (standard on most Linux distributions)
+| Tool | Purpose | Installation |
+|------|---------|-------------|
+| **pkl** | Configuration language runtime | [Install guide](https://pkl-lang.org/main/current/pkl-cli/index.html) |
+| **bash** | Shell interpreter (4.0+) | Pre-installed on most Linux distributions |
+
+#### Quick Install with mise
+
+If you have [mise](https://mise.jdx.dev/) installed, you can install all dependencies at once:
+
+```bash
+# Install mise if you don't have it
+curl https://mise.run | sh
+
+# Install all dependencies
+mise install pkl@latest
+```
+
+#### Manual Installation
+
+**pkl**: Follow the [official installation guide](https://pkl-lang.org/main/current/pkl-cli/index.html)
+
+**bash**: Usually pre-installed. Verify version with:
+```bash
+bash --version  # Should be 4.0 or higher
+```
 
 ## Quick Start
 
