@@ -142,20 +142,7 @@ jobs:
           **Using container:**
           ```bash
           # No local installation required
-          podman run --rm -v ./resources.pkl:/work/resources.pkl ghcr.io/declix/declix-bash:${{ steps.tag.outputs.tag }} /work/resources.pkl | bash -s check
-          ```
-          
-          **From source:**
-          ```bash
-          # Extract the archive
-          tar -xzf declix-bash-${{ steps.tag.outputs.tag }}.tar.gz
-          cd declix-bash
-          
-          # Install dependencies
-          just deps
-          
-          # Generate and run scripts
-          ./generate.sh resources.pkl | bash -s check
+          podman run --rm -v ./resources.pkl:/work/resources.pkl ghcr.io/declix/declix-bash:latest /work/resources.pkl | bash -s check
           ```
         draft: false
         prerelease: false
