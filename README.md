@@ -235,6 +235,9 @@ just deps
 # Generate script directly (bypasses release build)
 ./generate.sh resources.pkl > generated-script.sh
 
+# Generate script locally (alternative to ./generate.sh)
+just generate-local resources.pkl
+
 # Build single-file release
 just release
 
@@ -257,7 +260,7 @@ For isolated development without installing tools locally:
 just build
 
 # Generate script using container
-just generate resources.pkl > generated-script.sh
+just generate resources.pkl
 ```
 
 ## Architecture
@@ -314,7 +317,7 @@ just test
 cd tests && just test-one files
 
 # Test release build
-just test-release
+cd tests && just test-release
 ```
 
 Test structure:
