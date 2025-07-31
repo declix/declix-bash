@@ -55,54 +55,6 @@ bash generated-script.sh diff
 bash generated-script.sh apply
 ```
 
-## Alternative Installation Methods
-
-### Build from Source
-
-For development or to get the latest unreleased features:
-
-```bash
-# Clone the repository
-git clone https://github.com/declix/declix-bash.git
-cd declix-bash
-
-# Install dependencies (pkl, shellcheck, etc.)
-just deps
-
-# Build single-file release
-just release
-
-# Use the built release
-./out/declix-bash.sh resources.pkl > generated-script.sh
-```
-
-### Using Local Development
-
-For working on declix-bash itself:
-
-```bash
-# Generate script directly (requires pkl)
-./generate.sh resources.pkl > generated-script.sh
-
-# Execute generated script (no pkl required)
-bash generated-script.sh check
-bash generated-script.sh apply
-```
-
-### Using Container
-
-For isolated generation without installing Pkl locally:
-
-```bash
-# Build container (includes pkl)
-just build
-
-# Generate script using container
-just generate resources.pkl > generated-script.sh
-
-# Execute generated script on host (no pkl required)
-bash generated-script.sh check
-```
 
 ## Resource Types
 
@@ -254,7 +206,7 @@ just deps
 # Build container image
 just build
 
-# Generate script locally
+# Generate script locally (for development)
 just generate-local resources.pkl
 
 # Run tests
@@ -268,6 +220,55 @@ just release
 
 # Run all commit checks
 just check-commit
+```
+
+### Alternative Development Methods
+
+#### Build from Source
+
+For development or to get the latest unreleased features:
+
+```bash
+# Clone the repository
+git clone https://github.com/declix/declix-bash.git
+cd declix-bash
+
+# Install dependencies (pkl, shellcheck, etc.)
+just deps
+
+# Build single-file release
+just release
+
+# Use the built release
+./out/declix-bash.sh resources.pkl > generated-script.sh
+```
+
+#### Using Local Development
+
+For working on declix-bash itself:
+
+```bash
+# Generate script directly (requires pkl)
+./generate.sh resources.pkl > generated-script.sh
+
+# Execute generated script (no pkl required)
+bash generated-script.sh check
+bash generated-script.sh apply
+```
+
+#### Using Container
+
+For isolated generation without installing Pkl locally:
+
+```bash
+# Build container (includes pkl)
+just build
+
+# Generate script using container
+just generate resources.pkl > generated-script.sh
+
+# Execute generated script on host (no pkl required)
+bash generated-script.sh check
 ```
 
 ## Architecture
