@@ -205,3 +205,15 @@ test-release: release
 # Test release file with all container tests
 test-release-full: release
     cd tests && just test-release
+
+# Pull published container from GitHub Container Registry
+pull-container:
+    podman pull ghcr.io/declix/declix-bash:latest
+
+# Generate script using published container
+generate-with-published file:
+    podman run --rm -v {{justfile_directory()}}/{{file}}:/work/resources.pkl ghcr.io/declix/declix-bash:latest /work/resources.pkl
+
+# Run interactive shell in published container
+run-published:
+    podman run --rm -it --entrypoint bash ghcr.io/declix/declix-bash:latest

@@ -1,5 +1,13 @@
 FROM debian:12-slim
 
+# Container metadata
+LABEL org.opencontainers.image.title="declix-bash"
+LABEL org.opencontainers.image.description="Bash script generator for declarative Linux system configuration using Pkl"
+LABEL org.opencontainers.image.url="https://github.com/declix/declix-bash"
+LABEL org.opencontainers.image.source="https://github.com/declix/declix-bash"
+LABEL org.opencontainers.image.vendor="Declix"
+LABEL org.opencontainers.image.licenses="MIT"
+
 # Install required tools
 RUN apt-get update && apt-get install -y \
     curl \

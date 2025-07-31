@@ -34,6 +34,19 @@ chmod +x declix-bash.sh
 ./declix-bash.sh --help
 ```
 
+### Using Container (No Local Installation)
+
+Run declix-bash without installing anything locally using the published container:
+
+```bash
+# Generate script using container (no local pkl required)
+podman run --rm -v ./resources.pkl:/work/resources.pkl ghcr.io/declix/declix-bash:latest /work/resources.pkl > generated-script.sh
+
+# Execute generated script
+bash generated-script.sh check
+bash generated-script.sh apply
+```
+
 ### Dependencies
 
 declix-bash requires the following tools to generate scripts:
@@ -257,10 +270,15 @@ For isolated development without installing tools locally:
 
 ```bash
 # Build container (includes pkl)
-just build
+just build-container
 
 # Generate script using container
-just generate resources.pkl
+just generate-in-container resources.pkl
+
+# Use published container
+just pull-container                           # Pull latest from registry
+just generate-with-published resources.pkl   # Generate using published container
+just run-published                           # Interactive shell in published container
 ```
 
 ## Architecture
