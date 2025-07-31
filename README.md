@@ -45,13 +45,9 @@ declix-bash requires the following tools to generate scripts:
 
 #### Quick Install with mise
 
-If you have [mise](https://mise.jdx.dev/) installed, you can install all dependencies at once:
+If you have [mise](https://mise.jdx.dev/) installed, you can install all dependencies:
 
 ```bash
-# Install mise if you don't have it
-curl https://mise.run | sh
-
-# Install all dependencies
 mise install pkl@latest
 ```
 
