@@ -16,6 +16,23 @@ examples {
       }
     }
   }
+  ["APT package missing"] {
+    new {
+      id = "apt:unwanted-package"
+      result {
+        #"__apt_missing "$action" "unwanted-package""#
+      }
+      aux {}
+      functionName = "_apt__unwanted__package"
+      pkg {
+        type = "apt"
+        id = "apt:unwanted-package"
+        name = "unwanted-package"
+        state = "missing"
+        updateBeforeInstall = false
+      }
+    }
+  }
   ["File present with content"] {
     new {
       id = "file:/tmp/test.txt"
@@ -44,6 +61,83 @@ examples {
       }
     }
   }
+  ["File absent"] {
+    new {
+      id = "file:/tmp/old-file.txt"
+      result {
+        #"__file_missing "$action" "/tmp/old-file.txt""#
+      }
+      aux {}
+      functionName = "_file____tmp__old__file__txt"
+      file {
+        type = "file"
+        id = "file:/tmp/old-file.txt"
+        path = "/tmp/old-file.txt"
+        state {}
+      }
+    }
+  }
+  ["File with multiline content"] {
+    new {
+      id = "file:/etc/nginx/nginx.conf"
+      result {
+        #"__file_present "$action" "/etc/nginx/nginx.conf" "d16d1ab827b72f2fdf8ca454cc2bb0ac63c0edf693168d9d1b9bde70a2655273" "root" "root" "644""#
+      }
+      aux {
+        """
+        function __content__d16d1ab827b72f2fdf8ca454cc2bb0ac63c0edf693168d9d1b9bde70a2655273() {
+            local content="c2VydmVyIHsKICAgIGxpc3RlbiA4MDsKICAgIHJvb3QgL3Zhci93d3cvaHRtbDsKfQ=="
+            echo $content | base64 --decode
+        }
+        """
+      }
+      functionName = "_file____etc__nginx__nginx__conf"
+      file {
+        type = "file"
+        id = "file:/etc/nginx/nginx.conf"
+        path = "/etc/nginx/nginx.conf"
+        state {
+          owner = "root"
+          group = "root"
+          permissions = "644"
+          content = """
+            server {
+                listen 80;
+                root /var/www/html;
+            }
+            """
+        }
+      }
+    }
+  }
+  ["File with special characters in path"] {
+    new {
+      id = "file:/tmp/file-with-dashes_and_underscores.test.txt"
+      result {
+        #"__file_present "$action" "/tmp/file-with-dashes_and_underscores.test.txt" "6ae8a75555209fd6c44157c0aed8016e763ff435a19cf186f76863140143ff72" "root" "root" "644""#
+      }
+      aux {
+        """
+        function __content__6ae8a75555209fd6c44157c0aed8016e763ff435a19cf186f76863140143ff72() {
+            local content="dGVzdCBjb250ZW50"
+            echo $content | base64 --decode
+        }
+        """
+      }
+      functionName = "_file____tmp__file__with__dashes_and_underscores__test__txt"
+      file {
+        type = "file"
+        id = "file:/tmp/file-with-dashes_and_underscores.test.txt"
+        path = "/tmp/file-with-dashes_and_underscores.test.txt"
+        state {
+          owner = "root"
+          group = "root"
+          permissions = "644"
+          content = "test content"
+        }
+      }
+    }
+  }
   ["Directory present"] {
     new {
       id = "dir:/opt/myapp"
@@ -64,6 +158,22 @@ examples {
       }
     }
   }
+  ["Directory absent"] {
+    new {
+      id = "dir:/tmp/old-dir"
+      result {
+        #"__dir_missing "$action" "/tmp/old-dir""#
+      }
+      aux {}
+      functionName = "_dir____tmp__old__dir"
+      dir {
+        type = "dir"
+        id = "dir:/tmp/old-dir"
+        path = "/tmp/old-dir"
+        state {}
+      }
+    }
+  }
   ["Systemd service enabled"] {
     new {
       id = "systemd:nginx.service"
@@ -76,6 +186,86 @@ examples {
         type = "systemd"
         id = "systemd:nginx.service"
         name = "nginx.service"
+        state {
+          type = "enabled"
+          active = true
+          autoStart = true
+          daemonReload = true
+        }
+      }
+    }
+  }
+  ["Systemd service disabled"] {
+    new {
+      id = "systemd:bluetooth.service"
+      result {
+        #"__systemd_unit_present "$action" "bluetooth.service" "disabled" "true" "false" "false" "true""#
+      }
+      aux {}
+      functionName = "_systemd__bluetooth__service"
+      unit {
+        type = "systemd"
+        id = "systemd:bluetooth.service"
+        name = "bluetooth.service"
+        state {
+          type = "disabled"
+          autoStart = false
+          stopIfRunning = true
+          daemonReload = true
+        }
+      }
+    }
+  }
+  ["Systemd service masked"] {
+    new {
+      id = "systemd:cups.service"
+      result {
+        #"__systemd_unit_present "$action" "cups.service" "masked" "true" "false" "false" "false""#
+      }
+      aux {}
+      functionName = "_systemd__cups__service"
+      unit {
+        type = "systemd"
+        id = "systemd:cups.service"
+        name = "cups.service"
+        state {
+          type = "masked"
+          daemonReload = true
+        }
+      }
+    }
+  }
+  ["Systemd service missing"] {
+    new {
+      id = "systemd:old.service"
+      result {
+        #"__systemd_unit_present "$action" "old.service" "missing" "true" "false" "false" "false""#
+      }
+      aux {}
+      functionName = "_systemd__old__service"
+      unit {
+        type = "systemd"
+        id = "systemd:old.service"
+        name = "old.service"
+        state {
+          type = "missing"
+          daemonReload = true
+        }
+      }
+    }
+  }
+  ["Systemd service with dots in name"] {
+    new {
+      id = "systemd:my-app.service"
+      result {
+        #"__systemd_unit_present "$action" "my-app.service" "enabled" "true" "true" "true" "false""#
+      }
+      aux {}
+      functionName = "_systemd__my__app__service"
+      unit {
+        type = "systemd"
+        id = "systemd:my-app.service"
+        name = "my-app.service"
         state {
           type = "enabled"
           active = true
@@ -104,6 +294,22 @@ examples {
           home = "/home/webuser"
           shell = "/bin/bash"
         }
+      }
+    }
+  }
+  ["User absent"] {
+    new {
+      id = "user:olduser"
+      result {
+        #"__user_absent "$action" "olduser""#
+      }
+      aux {}
+      functionName = "_user__olduser"
+      user {
+        type = "user"
+        id = "user:olduser"
+        name = "olduser"
+        state {}
       }
     }
   }

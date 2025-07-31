@@ -30,7 +30,6 @@ check-commit:
     @echo ""
     @echo "2. Running Pkl tests..."
     pkl test generate_test.pkl
-    pkl test gen_function_test.pkl
     @echo "✓ Pkl tests passed"
     @echo ""
     @echo "3. Running generation tests..."
