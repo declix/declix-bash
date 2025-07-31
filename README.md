@@ -19,37 +19,48 @@ declix-bash is part of the Declix ecosystem for declarative Linux configuration 
 
 ### Using the Release Build (Recommended)
 
-Download or build the single-file release:
+The single-file release embeds all dependencies and only requires `pkl` at generation time:
 
 ```bash
-# Build the release
+# Build the release (requires pkl)
 just release
 
-# Use the single-file script
-./out/declix-bash.sh resources.pkl | bash -s check
-./out/declix-bash.sh resources.pkl | bash -s diff
-./out/declix-bash.sh resources.pkl | bash -s apply
+# Generate script (requires pkl)
+./out/declix-bash.sh resources.pkl > generated-script.sh
+
+# Execute on target system (no pkl required)
+bash generated-script.sh check
+bash generated-script.sh diff
+bash generated-script.sh apply
 ```
 
 ### Using Local Development
 
 ```bash
-# Install dependencies
+# Install dependencies (pkl, shellcheck, etc.)
 just deps
 
-# Generate and run scripts
-./generate.sh resources.pkl | bash -s check
-./generate.sh resources.pkl | bash -s apply
+# Generate script (requires pkl)
+./generate.sh resources.pkl > generated-script.sh
+
+# Execute generated script (no pkl required)
+bash generated-script.sh check
+bash generated-script.sh apply
 ```
 
 ### Using Container
 
+For isolated generation without installing Pkl locally:
+
 ```bash
-# Build container
+# Build container (includes pkl)
 just build
 
-# Generate using container
-just generate resources.pkl | bash -s check
+# Generate script using container
+just generate resources.pkl > generated-script.sh
+
+# Execute generated script on host (no pkl required)
+bash generated-script.sh check
 ```
 
 ## Resource Types
@@ -116,24 +127,38 @@ new user.User {
 
 ## Operation Modes
 
+Generated scripts support three operation modes. You can either pipe directly or save to a file:
+
 ### Check Mode
 Shows the current status of each resource:
 ```bash
+# Direct execution
 ./generate.sh resources.pkl | bash -s check
+
+# Or save and execute
+./generate.sh resources.pkl > script.sh && bash script.sh check
 ```
 Output shows "ok", "needs update", "needs creation", etc.
 
 ### Diff Mode
 Shows detailed differences between current and desired state:
 ```bash
+# Direct execution  
 ./generate.sh resources.pkl | bash -s diff
+
+# Or save and execute
+./generate.sh resources.pkl > script.sh && bash script.sh diff
 ```
 Displays file content diffs, permission changes, etc.
 
 ### Apply Mode
 Makes changes to achieve the desired state:
 ```bash
+# Direct execution
 ./generate.sh resources.pkl | bash -s apply
+
+# Or save and execute  
+./generate.sh resources.pkl > script.sh && bash script.sh apply
 ```
 Only makes necessary changes, reports what was modified.
 
@@ -206,12 +231,29 @@ just check-commit
 
 ## Architecture
 
+### Two-Phase Design
+
+declix-bash uses a two-phase architecture that separates generation from execution:
+
+**Phase 1: Script Generation** (Development/CI environment)
+- Input: Pkl resource definitions (`.pkl` files)
+- Processor: `generate.pkl` template engine  
+- Dependencies: Pkl runtime, development tools
+- Output: Self-contained bash script
+
+**Phase 2: Script Execution** (Target systems)
+- Input: Generated bash script
+- Processor: Standard bash interpreter
+- Dependencies: Only bash + system utilities
+- Output: Applied system configuration
+
 ### Code Generation Flow
 
-1. **Input**: Pkl resource definitions (`.pkl` files)
-2. **Processing**: `generate.pkl` transforms resources into Bash functions
-3. **Output**: Self-contained shell script with embedded functions
-4. **Execution**: Generated script supports check/diff/apply operations
+1. **Parse**: Pkl evaluates resource definitions and imports
+2. **Transform**: `generate.pkl` converts resources to bash functions
+3. **Embed**: File content encoded as base64, checksums calculated
+4. **Package**: Single script with all dependencies embedded
+5. **Execute**: Generated script runs independently on target systems
 
 ### Generated Script Structure
 
@@ -268,10 +310,45 @@ Files use a sophisticated content management system:
 
 ## Requirements
 
-- **pkl**: Apple's configuration language runtime
+### Script Generation (Development Time)
+
+Required for generating bash scripts from Pkl configurations:
+
+- **pkl**: Apple's configuration language runtime ([install guide](https://pkl-lang.org/main/current/pkl-cli/index.html))
+- **bash**: Modern bash shell (4.0+) for running `generate.sh`
+- **Optional tools**:
+  - **mise**: Tool version manager ([install guide](https://mise.jdx.dev/getting-started.html))
+  - **just**: Task runner for development commands ([install guide](https://just.systems/man/en/chapter_1.html))
+  - **shellcheck**: Bash linter for development
+  - **podman/docker**: For container-based generation
+
+### Script Execution (Runtime)
+
+Required on target systems where generated scripts will run:
+
 - **bash**: Modern bash shell (4.0+)
-- **sudo**: For privileged system operations
-- **Standard utilities**: `systemctl`, `apt-get`, `useradd`, etc.
+- **sudo**: For privileged operations (file management, package installation, etc.)
+- **System utilities** (available on most Linux distributions):
+  - `systemctl` - systemd service management
+  - `apt-get`, `dpkg-query` - Debian/Ubuntu package management
+  - `useradd`, `userdel`, `usermod` - user management
+  - `groupadd`, `groupdel`, `groupmod`, `gpasswd` - group management
+  - `stat`, `sha256sum`, `chown`, `chmod` - file operations
+  - Standard POSIX utilities: `mkdir`, `cp`, `rm`, `diff`, etc.
+
+### Architecture: Generation vs Execution
+
+**Generation Side** (where you develop and generate scripts):
+- Requires Pkl runtime and development tools
+- Processes `.pkl` configuration files
+- Produces standalone bash scripts
+- Can run in containers for isolation
+
+**Execution Side** (target systems):
+- Only needs bash and standard Linux utilities
+- No Pkl dependency required
+- Generated scripts are self-contained
+- Scripts include embedded content and checksums
 
 ## License
 
