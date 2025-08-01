@@ -3,8 +3,13 @@
 set -eu
 set -o pipefail
 
-if [ -z "$1" ]; then
+if [ -z "${1:-}" ]; then
     echo "Usage: $0 <path_to_resources.pkl>"
+    exit 1
+fi
+
+if [ ! -f "$1" ]; then
+    echo "Error: File '$1' not found"
     exit 1
 fi
 
