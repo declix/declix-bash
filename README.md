@@ -76,16 +76,28 @@ bash --version  # Should be 4.0 or higher
 
 ## Quick Start
 
-Generate and execute scripts:
+### Using Container (No pkl installation required)
+
+```bash
+# Generate script from your Pkl configuration
+podman run --rm -v ./resources.pkl:/work/resources.pkl ghcr.io/declix/declix-bash:latest /work/resources.pkl > deploy.sh
+
+# Review and apply changes
+bash deploy.sh check   # What needs changing?
+bash deploy.sh diff    # Show detailed differences  
+bash deploy.sh apply   # Apply configuration
+```
+
+### Using Downloaded Script
 
 ```bash
 # Generate script (requires pkl)
-./declix-bash.sh resources.pkl > generated-script.sh
+./declix-bash.sh resources.pkl > deploy.sh
 
 # Execute on target system (no pkl required)
-bash generated-script.sh check
-bash generated-script.sh diff
-bash generated-script.sh apply
+bash deploy.sh check
+bash deploy.sh diff
+bash deploy.sh apply
 ```
 
 
