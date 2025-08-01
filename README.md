@@ -17,7 +17,21 @@ declix-bash is part of the Declix ecosystem for declarative Linux configuration 
 
 ## Installation
 
-### Download from GitHub Releases (Recommended)
+### Using Container (Recommended - No Local Installation)
+
+Run declix-bash without installing anything locally using the published container:
+
+```bash
+# Generate script using container (no local pkl required)
+podman run --rm -v ./resources.pkl:/work/resources.pkl ghcr.io/declix/declix-bash:latest /work/resources.pkl > generated-script.sh
+
+# Execute generated script
+bash generated-script.sh check
+bash generated-script.sh diff
+bash generated-script.sh apply
+```
+
+### Download from GitHub Releases
 
 Get the latest single-file release that works anywhere with just `pkl` and `bash`:
 
@@ -32,19 +46,6 @@ chmod +x declix-bash.sh
 
 # Verify installation
 ./declix-bash.sh --help
-```
-
-### Using Container (No Local Installation)
-
-Run declix-bash without installing anything locally using the published container:
-
-```bash
-# Generate script using container (no local pkl required)
-podman run --rm -v ./resources.pkl:/work/resources.pkl ghcr.io/declix/declix-bash:latest /work/resources.pkl > generated-script.sh
-
-# Execute generated script
-bash generated-script.sh check
-bash generated-script.sh apply
 ```
 
 ### Dependencies
