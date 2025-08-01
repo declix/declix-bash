@@ -12,8 +12,9 @@ LABEL org.opencontainers.image.licenses="MIT"
 RUN apt-get update && apt-get install -y curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Download and install pkl manually (latest stable)
-RUN curl -L -o /usr/local/bin/pkl https://github.com/apple/pkl/releases/latest/download/pkl-linux-amd64 \
+# Download and install pkl manually (specific version for consistency)
+ARG PKL_VERSION=0.27.1
+RUN curl -L -o /usr/local/bin/pkl "https://github.com/apple/pkl/releases/download/${PKL_VERSION}/pkl-linux-amd64" \
     && chmod +x /usr/local/bin/pkl
 
 WORKDIR /app

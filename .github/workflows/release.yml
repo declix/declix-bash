@@ -63,11 +63,28 @@ jobs:
       - name: Build single-file release
         run: just release
 
+      - name: Release
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npx semantic-release
+
+      # Container build and push happens after release to ensure tags exist
+      - name: Get latest tag
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        id: latest_tag
+        run: |
+          # Get the latest tag created by semantic-release
+          LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+          echo "tag=${LATEST_TAG}" >> $GITHUB_OUTPUT
+          echo "Latest tag: ${LATEST_TAG}"
+
       - name: Set up Docker Buildx
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && steps.latest_tag.outputs.tag != ''
         uses: docker/setup-buildx-action@v3
 
       - name: Log in to GitHub Container Registry
-        if: github.ref == 'refs/heads/main'
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && steps.latest_tag.outputs.tag != ''
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
@@ -75,29 +92,25 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Extract metadata for container
-        if: github.ref == 'refs/heads/main'
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && steps.latest_tag.outputs.tag != ''
         id: meta
         uses: docker/metadata-action@v5
         with:
           images: ghcr.io/${{ github.repository }}
           tags: |
-            type=ref,event=branch
-            type=raw,value=latest,enable={{is_default_branch}}
+            type=raw,value=latest
+            type=raw,value=${{ steps.latest_tag.outputs.tag }}
+            type=sha,prefix={{branch}}-
 
       - name: Build and push container
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && steps.latest_tag.outputs.tag != ''
         uses: docker/build-push-action@v5
         with:
           context: .
           file: ./Containerfile
-          push: ${{ github.ref == 'refs/heads/main' }}
-          tags: ${{ steps.meta.outputs.tags || 'declix-bash:test' }}
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           platforms: linux/amd64,linux/arm64
           cache-from: type=gha
           cache-to: type=gha,mode=max
-
-      - name: Release
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: npx semantic-release
