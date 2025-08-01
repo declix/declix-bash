@@ -17,8 +17,8 @@ generate-local file:
 
 # Run shellcheck on shell scripts
 shellcheck:
-    shellcheck generate.sh src/common.sh
-    find . -name "*.sh" -not -path "./tests/*/generated.sh" -not -path "./local/*" -not -path "./node_modules/*" | xargs shellcheck
+    shellcheck generate.sh src/common.sh src/release-template.sh
+    find . -name "*.sh" -not -path "./tests/*/generated.sh" -not -path "./local/*" -not -path "./node_modules/*" -not -path "./out/*" | xargs shellcheck
 
 # Run all checks except container tests (for CI commits)
 check-commit:
