@@ -3,7 +3,7 @@
 set -eu
 set -o pipefail
 
-if [ -z "${1:-}" ] || [ "$1" = "--help" ] || [ "$1" = "-h" ]; then
+if [ "${1:-}" = "--help" ] || [ "${1:-}" = "-h" ]; then
     echo "Usage: $0 <path_to_resources.pkl>"
     echo ""
     echo "Generate idempotent Bash scripts from Pkl resource definitions."
@@ -11,7 +11,12 @@ if [ -z "${1:-}" ] || [ "$1" = "--help" ] || [ "$1" = "-h" ]; then
     echo "Example:"
     echo "  $0 resources.pkl > deploy.sh"
     echo "  bash deploy.sh check"
-    exit $([ "$1" = "--help" ] || [ "$1" = "-h" ] && echo 0 || echo 1)
+    exit 0
+fi
+
+if [ -z "${1:-}" ]; then
+    echo "Usage: $0 <path_to_resources.pkl>"
+    exit 1
 fi
 
 declix_bash_home=$(dirname "$(realpath "$0")")
