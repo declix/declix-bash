@@ -41,7 +41,7 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt update
-          sudo apt install --no-install-recommends --no-upgrade -y just shellcheck
+          sudo apt install --no-install-recommends --no-upgrade -y just shellcheck podman
           
       - name: Install semantic-release dependencies
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
@@ -59,6 +59,10 @@ jobs:
       - name: Run all commit checks
         run: |
           just check-commit
+
+      - name: Run container tests
+        run: |
+          cd tests && just test
 
       - name: Build single-file release
         run: just release
