@@ -38,17 +38,10 @@ jobs:
         with:
           node-version: "lts/*"
 
-      - name: Install mise
-        uses: jdx/mise-action@v2
-
-      - name: Install just
-        run: |
-          sudo apt update
-          sudo apt install --no-install-recommends --no-upgrade -y just
-          
       - name: Install dependencies
         run: |
-          just deps
+          sudo apt update
+          sudo apt install --no-install-recommends --no-upgrade -y just shellcheck podman
           
       - name: Install semantic-release dependencies
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
