@@ -33,7 +33,7 @@ check-commit:
     @echo "✓ Pkl tests passed"
     @echo ""
     @echo "3. Running generation tests..."
-    cd tests && just test-local-generate
+    just tests/test-local-generate
     @echo "✓ Generation tests passed"
     @echo ""
     @echo "4. Building release file..."
@@ -41,7 +41,7 @@ check-commit:
     @echo "✓ Release build passed"
     @echo ""
     @echo "5. Testing release file generation..."
-    cd tests && just test-release-generate
+    just tests/test-release-generate
     @echo "✓ Release generation tests passed"
     @echo ""
     @echo "=== All commit checks passed! ==="
@@ -52,11 +52,11 @@ run-in-container: build-container
 
 # Run tests (all in container)
 test:
-    cd tests && just test
+    just tests/test
 
 # Clean up container images
 clean:
-    cd tests && just clean
+    just tests/clean
 
 # Create single-file release
 release:
@@ -105,4 +105,4 @@ test-release: release
 
 # Test release file with all container tests
 test-release-full: release
-    cd tests && just test-release
+    just tests/test-release

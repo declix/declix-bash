@@ -75,6 +75,34 @@ echo "=== END FINAL STATE CHECK ==="
 # Filter out bash debug lines for final_state.txt
 grep -v "^+" final_check.log | grep -v "^++" > final_state.txt || true
 
+# Run diff to verify no changes are needed after apply
+echo "=== DIFF CHECK (should be empty) ==="
+bash -x generated.sh diff 2>&1 | tee diff_check.log
+echo "=== END DIFF CHECK ==="
+
+# Filter out bash debug lines for diff output
+grep -v "^+" diff_check.log | grep -v "^++" > diff_output.txt || true
+
+# Check that diff output is empty (no changes needed)
+if [ -s diff_output.txt ]; then
+    echo "ERROR: Diff check shows pending changes after apply:"
+    echo "=== DIFF OUTPUT ==="
+    cat diff_output.txt
+    echo "=== END DIFF OUTPUT ==="
+    
+    echo "=== COMPLETE APPLY LOG ==="
+    cat apply.log
+    echo "=== END APPLY LOG ==="
+    
+    echo "=== COMPLETE FINAL CHECK LOG ==="
+    cat final_check.log
+    echo "=== END FINAL CHECK LOG ==="
+    
+    exit 1
+else
+    echo "✓ Diff check passed - no pending changes after apply"
+fi
+
 # Run verify if exists to check resource statuses
 if [ -f verify.sh ]; then
     echo "Verifying resource statuses..."
