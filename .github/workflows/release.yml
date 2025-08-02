@@ -38,10 +38,14 @@ jobs:
         with:
           node-version: "lts/*"
 
-      - name: Install dependencies
+      - name: Install just
         run: |
           sudo apt update
-          sudo apt install --no-install-recommends --no-upgrade -y just shellcheck podman
+          sudo apt install --no-install-recommends --no-upgrade -y just
+          
+      - name: Install dependencies
+        run: |
+          just deps
           
       - name: Install semantic-release dependencies
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
