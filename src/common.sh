@@ -13,7 +13,7 @@ function __apt_installed() {
     local update=$3
 
     local status
-    status=$(dpkg-query -W -f='${db:Status-Abbrev}' "$package" )
+    status=$(dpkg-query -W -f='${db:Status-Abbrev}' "$package" 2>/dev/null || true)
 
     if [ "$status" != "ii " ]; then
         if [ "$action" == "check" ]; then
@@ -48,7 +48,7 @@ function __apt_missing() {
     local package=$2
 
     local status
-    status=$(dpkg-query -W -f='${db:Status-Abbrev}' "$package" )
+    status=$(dpkg-query -W -f='${db:Status-Abbrev}' "$package" 2>/dev/null || true)
 
     if [ "$status" != "" ]; then
         if [ "$action" == "check" ]; then
