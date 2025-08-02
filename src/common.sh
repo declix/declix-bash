@@ -13,7 +13,7 @@ function __apt_installed() {
     local update=$3
 
     local status
-    status=$(dpkg-query -W -f='${db:Status-Abbrev}' "$package" )
+    status=$(dpkg-query -W -f='${db:Status-Abbrev}' "$package" 2>/dev/null || true)
 
     if [ "$status" != "ii " ]; then
         if [ "$action" == "check" ]; then
@@ -48,7 +48,7 @@ function __apt_missing() {
     local package=$2
 
     local status
-    status=$(dpkg-query -W -f='${db:Status-Abbrev}' "$package" )
+    status=$(dpkg-query -W -f='${db:Status-Abbrev}' "$package" 2>/dev/null || true)
 
     if [ "$status" != "" ]; then
         if [ "$action" == "check" ]; then
@@ -400,7 +400,7 @@ function __systemd_unit_present() {
         # Capture only stdout, ignore stderr completely
         current_enabled_state=$(systemctl is-enabled "$unit_name" 2>/dev/null || true)
         # If empty or multiline, set to unknown
-        if [ -z "$current_enabled_state" ] || [[ "$current_enabled_state" == *$'\n'* ]]; then
+        if [ -z "$current_enabled_state" ] || [ "$(echo "$current_enabled_state" | wc -l)" -gt 1 ]; then
             current_enabled_state="unknown"
         fi
     fi
@@ -411,7 +411,7 @@ function __systemd_unit_present() {
         # Capture only stdout, ignore stderr completely  
         current_active_state=$(systemctl is-active "$unit_name" 2>/dev/null || true)
         # If empty or multiline, set to unknown
-        if [ -z "$current_active_state" ] || [[ "$current_active_state" == *$'\n'* ]]; then
+        if [ -z "$current_active_state" ] || [ "$(echo "$current_active_state" | wc -l)" -gt 1 ]; then
             current_active_state="unknown"
         fi
     fi
@@ -532,11 +532,11 @@ function __systemd_unit_present() {
                         if systemctl list-unit-files --no-pager --no-legend "$unit_name" 2>/dev/null | grep -q "$unit_name"; then
                             unit_file_exists=true
                             current_enabled_state=$(systemctl is-enabled "$unit_name" 2>/dev/null || true)
-                            if [ -z "$current_enabled_state" ] || [[ "$current_enabled_state" == *$'\n'* ]]; then
+                            if [ -z "$current_enabled_state" ] || [ "$(echo "$current_enabled_state" | wc -l)" -gt 1 ]; then
                                 current_enabled_state="unknown"
                             fi
                             current_active_state=$(systemctl is-active "$unit_name" 2>/dev/null || true)
-                            if [ -z "$current_active_state" ] || [[ "$current_active_state" == *$'\n'* ]]; then
+                            if [ -z "$current_active_state" ] || [ "$(echo "$current_active_state" | wc -l)" -gt 1 ]; then
                                 current_active_state="unknown"
                             fi
                         else

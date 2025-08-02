@@ -343,10 +343,10 @@ The project uses container-based integration tests:
 just test
 
 # Run specific test
-cd tests && just test-one files
+just tests/test-one files
 
 # Test release build
-cd tests && just test-release
+just tests/test-release
 ```
 
 Test structure:
