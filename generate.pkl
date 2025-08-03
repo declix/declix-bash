@@ -1,8 +1,8 @@
-import "package://pkl.declix.org/pkl-declix@0.6.0#/declix.pkl"
-import "package://pkl.declix.org/pkl-declix@0.6.0#/apt/apt.pkl"
-import "package://pkl.declix.org/pkl-declix@0.6.0#/fs/fs.pkl"
-import "package://pkl.declix.org/pkl-declix@0.6.0#/systemd/systemd.pkl"
-import "package://pkl.declix.org/pkl-declix@0.6.0#/user/user.pkl"
+import "package://pkl.declix.org/pkl-declix@0.7.0#/declix.pkl"
+import "package://pkl.declix.org/pkl-declix@0.7.0#/apt/apt.pkl"
+import "package://pkl.declix.org/pkl-declix@0.7.0#/fs/fs.pkl"
+import "package://pkl.declix.org/pkl-declix@0.7.0#/systemd/systemd.pkl"
+import "package://pkl.declix.org/pkl-declix@0.7.0#/user/user.pkl"
 
 import "pkl:base"
 import "pkl:math"
@@ -166,7 +166,7 @@ class FsFileGen extends Gen {
     aux = if (file.state.hasProperty("content")) new Listing {
         let (content = file.state.content)
         """
-        function __content__\(content.sha256)() {
+        function __content__\(contentSha256(content))() {
             local content="\(encodeContentBase64(content))"
             echo $content | base64 --decode
         }
@@ -265,6 +265,24 @@ const local function encodeContentBase64(content): String =
         content.base64
     else if (content is Resource)
         content.base64
+    else if (content.hasProperty("type"))
+        // Use new type-based handling for pkl-declix 0.7.0
+        if (content.type == "base64")
+            content.data
+        else if (content.type == "url")
+            let (downloadedContent = read(content.url))
+            let (actualHash = downloadedContent.sha256)
+            if (actualHash != content.sha256)
+                throw("Hash mismatch for URL \(content.url): expected \(content.sha256), got \(actualHash)")
+            else
+                downloadedContent.base64
+        else if (content.type == "resource")
+            content.resource.base64
+        else if (content.type == "render")
+            content._result.base64
+        else
+            throw("unsupported content type: \(content.type)")
+    // Fallback for backwards compatibility
     else if (content.url != null && content.sha256 != null)
         let (downloadedContent = read(content.url))
         let (actualHash = downloadedContent.sha256)
@@ -280,6 +298,20 @@ const local function contentSha256(content): String =
         content.sha256
     else if (content is Resource)
         content.sha256
+    else if (content.hasProperty("type"))
+        // Use new type-based handling for pkl-declix 0.7.0
+        if (content.type == "base64")
+            // For base64 content, decode and compute sha256 of the original data
+            content.data.base64Decoded.sha256
+        else if (content.type == "url")
+            content.sha256
+        else if (content.type == "resource")
+            content.resource.sha256
+        else if (content.type == "render")
+            content._sha256
+        else
+            throw("unsupported content type: \(content.type)")
+    // Fallback for backwards compatibility
     else if (content.sha256 != null)
         content.sha256
     else
