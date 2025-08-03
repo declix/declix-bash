@@ -138,6 +138,37 @@ examples {
       }
     }
   }
+  ["File with Base64Content"] {
+    new {
+      id = "file:/tmp/base64-test.txt"
+      result {
+        #"__file_present "$action" "/tmp/base64-test.txt" "6a1f9c94bfad9bdc5123689c312726b44bcdfc322d8dd254128cb091fe16383a" "root" "root" "644""#
+      }
+      aux {
+        """
+        function __content__6a1f9c94bfad9bdc5123689c312726b44bcdfc322d8dd254128cb091fe16383a() {
+            local content="SGVsbG8gQmFzZTY0"
+            echo $content | base64 --decode
+        }
+        """
+      }
+      functionName = "_file____tmp__base64__test__txt"
+      file {
+        type = "file"
+        id = "file:/tmp/base64-test.txt"
+        path = "/tmp/base64-test.txt"
+        state {
+          owner = "root"
+          group = "root"
+          permissions = "644"
+          content {
+            type = "base64"
+            data = "SGVsbG8gQmFzZTY0"
+          }
+        }
+      }
+    }
+  }
   ["Directory present"] {
     new {
       id = "dir:/opt/myapp"

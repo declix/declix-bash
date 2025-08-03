@@ -1,10 +1,11 @@
 amends "pkl:test"
 
 import "../generate.pkl" as generate
-import "package://pkl.declix.org/pkl-declix@0.6.0#/apt/apt.pkl"
-import "package://pkl.declix.org/pkl-declix@0.6.0#/fs/fs.pkl"
-import "package://pkl.declix.org/pkl-declix@0.6.0#/systemd/systemd.pkl"
-import "package://pkl.declix.org/pkl-declix@0.6.0#/user/user.pkl"
+import "package://pkl.declix.org/pkl-declix@0.7.0#/declix.pkl" as declix
+import "package://pkl.declix.org/pkl-declix@0.7.0#/apt/apt.pkl"
+import "package://pkl.declix.org/pkl-declix@0.7.0#/fs/fs.pkl"
+import "package://pkl.declix.org/pkl-declix@0.7.0#/systemd/systemd.pkl"
+import "package://pkl.declix.org/pkl-declix@0.7.0#/user/user.pkl"
 
 // Helper function to generate from any resource
 local function genDynamic(resource: Any) = generate.gen(resource.toDynamic())
@@ -73,6 +74,21 @@ examples {
       }
     })
   }
+  
+  ["File with Base64Content"] {
+    genDynamic(new fs.File {
+      path = "/tmp/base64-test.txt"
+      state = new fs.FilePresent {
+        content = new declix.Base64Content {
+          data = "SGVsbG8gQmFzZTY0"  // "Hello Base64"
+        }
+        owner = "root"
+        group = "root"
+        permissions = "644"
+      }
+    })
+  }
+  
   
   // Directory examples
   ["Directory present"] {
